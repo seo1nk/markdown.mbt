@@ -4,6 +4,7 @@ package "mizchi/markdown/notebook"
 import {
   "mizchi/markdown",
   "mizchi/markdown/info_string",
+  "moonbitlang/core/debug",
 }
 
 // Values
@@ -130,9 +131,8 @@ pub(all) struct InlineDirective {
   source : String
   section : String?
   recursive : Bool
-}
+} derive(Eq, @debug.Debug)
 pub fn InlineDirective::new(String) -> Self
-pub impl Eq for InlineDirective
 pub impl Show for InlineDirective
 
 pub(all) struct Notebook {
@@ -152,7 +152,7 @@ pub(all) enum NotebookError {
   DuplicateDefinition(String, Array[String])
   CyclicDependency(Array[String])
   UndefinedReference(String, String)
-}
+} derive(@debug.Debug)
 pub impl Show for NotebookError
 
 pub(all) struct NotebookSession {
@@ -178,8 +178,7 @@ pub(all) enum OutputFormat {
   Html
   Json
   Auto
-}
-pub impl Eq for OutputFormat
+} derive(Eq, @debug.Debug)
 pub impl Show for OutputFormat
 
 // Type aliases

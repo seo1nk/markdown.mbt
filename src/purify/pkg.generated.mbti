@@ -1,6 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "mizchi/markdown/purify"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
 pub fn allowed_attributes() -> Array[String]
 
@@ -52,8 +56,7 @@ pub(all) enum RemovedKind {
   Attribute
   Url
   Protocol
-}
-pub impl Eq for RemovedKind
+} derive(Eq, @debug.Debug)
 pub impl Show for RemovedKind
 
 pub(all) struct SanitizeConfig {

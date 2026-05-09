@@ -215,6 +215,7 @@ pub fn InlineDirective::new(source : String) -> InlineDirective {
   { source, section: None, recursive: true }
 }
 
+///|
 pub impl Show for InlineDirective with output(
   self : InlineDirective,
   logger : &Logger,
@@ -222,6 +223,7 @@ pub impl Show for InlineDirective with output(
   logger.write_string(@debug.to_string(self))
 }
 
+///|
 pub impl Show for OutputFormat with output(
   self : OutputFormat,
   logger : &Logger,

@@ -3,6 +3,7 @@ package "mizchi/markdown/mdx"
 
 import {
   "mizchi/markdown",
+  "moonbitlang/core/debug",
 }
 
 // Values
@@ -53,8 +54,7 @@ pub(all) enum ExportKind {
   Function
   Default
   Named
-}
-pub impl Eq for ExportKind
+} derive(Eq, @debug.Debug)
 pub impl Show for ExportKind
 
 pub(all) struct ImportSpecifier {
@@ -62,53 +62,48 @@ pub(all) struct ImportSpecifier {
   local_name : String?
   is_default : Bool
   is_star : Bool
-}
+} derive(Eq, @debug.Debug)
 pub fn ImportSpecifier::default_import(String) -> Self
 pub fn ImportSpecifier::named(String) -> Self
 pub fn ImportSpecifier::star(String) -> Self
 pub fn ImportSpecifier::with_local(String, String) -> Self
-pub impl Eq for ImportSpecifier
 pub impl Show for ImportSpecifier
 
 pub(all) enum MdxAttrValue {
   StringValue(String)
   ExpressionValue(String)
   BooleanValue
-}
-pub impl Eq for MdxAttrValue
+} derive(Eq, @debug.Debug)
 pub impl Show for MdxAttrValue
 
 pub(all) struct MdxAttribute {
   name : String
   value : MdxAttrValue
-}
+} derive(Eq, @debug.Debug)
 pub fn MdxAttribute::boolean(String) -> Self
 pub fn MdxAttribute::expression(String, String) -> Self
 pub fn MdxAttribute::string(String, String) -> Self
-pub impl Eq for MdxAttribute
 pub impl Show for MdxAttribute
 
 pub(all) enum MdxBlock {
   ImportDecl(specifiers~ : Array[ImportSpecifier], source~ : String, span~ : @markdown.Span, raw~ : String)
   ExportDecl(kind~ : ExportKind, name~ : String?, value~ : String, span~ : @markdown.Span, raw~ : String)
   JsxElement(tag~ : String, attributes~ : Array[MdxAttribute], children~ : String, self_closing~ : Bool, span~ : @markdown.Span)
-}
+} derive(Eq, @debug.Debug)
 pub fn MdxBlock::is_export(Self) -> Bool
 pub fn MdxBlock::is_import(Self) -> Bool
 pub fn MdxBlock::is_jsx(Self) -> Bool
 pub fn MdxBlock::span(Self) -> @markdown.Span
 pub fn MdxBlock::tag_name(Self) -> String?
-pub impl Eq for MdxBlock
 pub impl Show for MdxBlock
 
 pub(all) struct MdxMetadata {
   imports : Array[MdxBlock]
   exports : Array[MdxBlock]
   components : Array[String]
-}
+} derive(Eq, @debug.Debug)
 pub fn MdxMetadata::empty() -> Self
 pub fn MdxMetadata::is_empty(Self) -> Bool
-pub impl Eq for MdxMetadata
 pub impl Show for MdxMetadata
 
 // Type aliases

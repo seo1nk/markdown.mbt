@@ -153,7 +153,7 @@ pub fn Notebook::validate(self : Notebook) -> Array[NotebookError] {
           break
         }
       }
-      if !(found) {
+      if !found {
         errors.push(UndefinedReference(cell.id, ref_var))
       }
     }
@@ -193,6 +193,7 @@ pub(all) enum NotebookError {
   UndefinedReference(String, String)
 } derive(Debug)
 
+///|
 pub impl Show for NotebookError with output(
   self : NotebookError,
   logger : &Logger,
