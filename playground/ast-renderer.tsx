@@ -86,6 +86,63 @@ export interface RendererOptions {
   codeBlockHandlers?: Record<string, CodeBlockHandler>;
 }
 
+export type BareUrlTextPart =
+  | { type: "text"; value: string }
+  | { type: "url"; value: string };
+
+/**
+ * Split preview text into plain text and bare http(s) URL tokens.
+ * URL tokens keep their display text identical to href.
+ */
+export function splitBareUrlText(text: string): BareUrlTextPart[] {
+  const parts: BareUrlTextPart[] = [];
+  const urlPattern = /(^|[\s([{<])((?:https?:\/\/)[^\s<>"']+)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  const pushText = (value: string) => {
+    if (!value) return;
+    const last = parts[parts.length - 1];
+    if (last?.type === "text") {
+      last.value += value;
+    } else {
+      parts.push({ type: "text", value });
+    }
+  };
+
+  while ((match = urlPattern.exec(text)) !== null) {
+    const prefix = match[1] ?? "";
+    const rawUrl = match[2] ?? "";
+    const matchStart = match.index;
+    const prefixStart = matchStart;
+    const urlStart = matchStart + prefix.length;
+    const trailing = rawUrl.match(/[.,;:!?)}\]]+$/)?.[0] ?? "";
+    const url = trailing ? rawUrl.slice(0, -trailing.length) : rawUrl;
+
+    if (!url) {
+      continue;
+    }
+
+    if (prefixStart > lastIndex) {
+      pushText(text.slice(lastIndex, prefixStart));
+    }
+    if (prefix) {
+      pushText(prefix);
+    }
+    parts.push({ type: "url", value: url });
+    if (trailing) {
+      pushText(trailing);
+    }
+    lastIndex = urlStart + rawUrl.length;
+  }
+
+  if (lastIndex < text.length) {
+    pushText(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [{ type: "text", value: text }];
+}
+
 // Helper component to render raw HTML using ref callback (exported for custom handlers)
 export function RawHtml({ html, ...props }: { html: string } & Record<string, unknown>) {
   return (
@@ -383,7 +440,19 @@ export function renderInline(inline: PhrasingContent, key?: string | number): JS
       if (inline.value === "\n") {
         return " ";
       }
-      return <span key={key}>{inline.value}</span>;
+      return (
+        <span key={key}>
+          {splitBareUrlText(inline.value).map((part, index) =>
+            part.type === "url" ? (
+              <a key={index} href={part.value}>
+                {part.value}
+              </a>
+            ) : (
+              <span key={index}>{part.value}</span>
+            ),
+          )}
+        </span>
+      );
 
     case "break":
       return <br key={key} />;
