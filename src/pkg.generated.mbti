@@ -34,9 +34,11 @@ pub fn md_render_to_html(Int) -> String
 
 pub fn md_render_to_string(Int) -> String
 
-pub fn md_to_html(String, wikilinks? : Bool) -> String
+pub fn md_to_html(String, wikilinks? : Bool, autolink? : Bool) -> String
 
-pub fn md_to_html_strict(String, wikilinks? : Bool) -> String
+pub fn md_to_html_autolink(String, wikilinks? : Bool) -> String
+
+pub fn md_to_html_strict(String, wikilinks? : Bool, autolink? : Bool) -> String
 
 pub fn parse(String, strict? : Bool, wikilinks? : Bool) -> ParseResult
 
@@ -48,7 +50,7 @@ pub fn parse_inlines(String, strict? : Bool, wikilinks? : Bool) -> Array[Inline]
 
 pub fn parse_inlines_multipass(String) -> Array[Inline]
 
-pub fn render_html(Document) -> String
+pub fn render_html(Document, autolink? : Bool) -> String
 
 pub fn serialize(Document) -> String
 
@@ -58,8 +60,6 @@ pub fn serialize_definitions(Array[LinkDefinition]) -> String
 
 // Types and methods
 pub(all) struct AgentId(Int) derive(Eq, @debug.Debug)
-#deprecated
-pub fn AgentId::inner(Self) -> Int
 pub impl Show for AgentId
 
 pub(all) enum Block {

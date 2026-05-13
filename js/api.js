@@ -6,12 +6,15 @@
 
 import {
   md_to_html,
+  md_to_html_with_autolink,
   md_to_html_with_wikilinks,
+  md_to_html_with_wikilinks_and_autolink,
   md_to_markdown,
   md_to_markdown_with_wikilinks,
   md_to_ast_json,
   md_to_ast_json_with_wikilinks,
   md_render_html,
+  md_render_html_with_autolink,
   md_serialize,
   md_parse_with_source,
   md_parse_with_source_with_wikilinks,
@@ -27,10 +30,14 @@ function useWikilinks(options) {
   return options?.wikilinks === true;
 }
 
+function useAutolink(options) {
+  return options?.autolink === true;
+}
+
 /**
  * Parse markdown and return the AST.
  * @param {string} source - Markdown source
- * @param {{ wikilinks?: boolean }} [options] - Parser extensions
+ * @param {{ wikilinks?: boolean, autolink?: boolean }} [options] - Parser and renderer extensions
  * @returns {import('./api').Document} Parsed AST
  */
 export function parse(source, options = {}) {
@@ -43,19 +50,28 @@ export function parse(source, options = {}) {
 /**
  * Convert markdown to HTML.
  * @param {string} source - Markdown source
- * @param {{ wikilinks?: boolean }} [options] - Parser extensions
+ * @param {{ wikilinks?: boolean, autolink?: boolean }} [options] - Parser and renderer extensions
  * @returns {string} HTML output
  */
 export function toHtml(source, options = {}) {
-  return useWikilinks(options)
-    ? md_to_html_with_wikilinks(source)
-    : md_to_html(source);
+  const wikilinks = useWikilinks(options);
+  const autolink = useAutolink(options);
+  if (wikilinks && autolink) {
+    return md_to_html_with_wikilinks_and_autolink(source);
+  }
+  if (wikilinks) {
+    return md_to_html_with_wikilinks(source);
+  }
+  if (autolink) {
+    return md_to_html_with_autolink(source);
+  }
+  return md_to_html(source);
 }
 
 /**
  * Normalize/serialize markdown source.
  * @param {string} source - Markdown source
- * @param {{ wikilinks?: boolean }} [options] - Parser extensions
+ * @param {{ wikilinks?: boolean, autolink?: boolean }} [options] - Parser and renderer extensions
  * @returns {string} Normalized markdown
  */
 export function toMarkdown(source, options = {}) {
@@ -71,11 +87,12 @@ export function toMarkdown(source, options = {}) {
 /**
  * Create a new document from markdown source.
  * @param {string} source - Markdown source
- * @param {{ wikilinks?: boolean }} [options] - Parser extensions
+ * @param {{ wikilinks?: boolean, autolink?: boolean }} [options] - Parser and renderer extensions
  * @returns {import('./api').DocumentHandle} Document handle
  */
 export function createDocument(source, options = {}) {
   const wikilinks = useWikilinks(options);
+  const autolink = useAutolink(options);
   const handle = wikilinks
     ? md_parse_with_source_with_wikilinks(source)
     : md_parse_with_source(source);
@@ -90,7 +107,9 @@ export function createDocument(source, options = {}) {
     },
 
     toHtml() {
-      return md_render_html(handle);
+      return autolink
+        ? md_render_html_with_autolink(handle)
+        : md_render_html(handle);
     },
 
     toMarkdown() {
@@ -117,7 +136,10 @@ export function createDocument(source, options = {}) {
           }
           return newCachedAst;
         },
-        toHtml: () => md_render_html(newHandle),
+        toHtml: () =>
+          autolink
+            ? md_render_html_with_autolink(newHandle)
+            : md_render_html(newHandle),
         toMarkdown: () => md_serialize(newHandle),
         update: (s, e) => createDocument(s, options).update(s, e), // Simplified
         dispose: () => md_free(newHandle),

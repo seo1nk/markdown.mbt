@@ -4,28 +4,32 @@
 
 ///|
 /// Render a document to HTML
-pub fn render_html(doc : Document) -> String {
+pub fn render_html(doc : Document, autolink? : Bool = false) -> String {
   let buf = StringBuilder::new()
   for block in doc.children {
-    render_block_html(block, buf)
+    render_block_html(block, buf, autolink~)
   }
   buf.to_string()
 }
 
 ///|
 /// Render a block element to HTML
-fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
+fn render_block_html(
+  block : Block,
+  buf : StringBuilder,
+  autolink? : Bool = false,
+) -> Unit {
   match block {
     Block::Paragraph(children~, ..) => {
       buf.write_string("<p>")
-      render_inlines_html(children, buf)
+      render_inlines_html(children, buf, autolink~)
       buf.write_string("</p>\n")
     }
     Block::Heading(level~, children~, ..) => {
       buf.write_string("<h")
       buf.write_string(level.to_string())
       buf.write_char('>')
-      render_inlines_html(children, buf)
+      render_inlines_html(children, buf, autolink~)
       buf.write_string("</h")
       buf.write_string(level.to_string())
       buf.write_string(">\n")
@@ -53,7 +57,7 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
     Block::Blockquote(children~, ..) => {
       buf.write_string("<blockquote>\n")
       for child in children {
-        render_block_html(child, buf)
+        render_block_html(child, buf, autolink~)
       }
       buf.write_string("</blockquote>\n")
     }
@@ -66,7 +70,7 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
         buf.write_string("<ul>\n")
       }
       for item in items {
-        render_list_item_html(item, buf, tight, has_task)
+        render_list_item_html(item, buf, tight, has_task, autolink~)
       }
       buf.write_string("</ul>\n")
     }
@@ -88,7 +92,7 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
         buf.write_string("\">\n")
       }
       for item in items {
-        render_list_item_html(item, buf, tight, has_task)
+        render_list_item_html(item, buf, tight, has_task, autolink~)
       }
       buf.write_string("</ol>\n")
     }
@@ -106,7 +110,7 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
         } else {
           TableAlign::None
         }
-        render_table_cell_html(cell, buf, "th", align)
+        render_table_cell_html(cell, buf, "th", align, autolink~)
       }
       buf.write_string("</tr>\n</thead>\n")
       if rows.length() > 0 {
@@ -119,7 +123,7 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
             } else {
               TableAlign::None
             }
-            render_table_cell_html(cell, buf, "td", align)
+            render_table_cell_html(cell, buf, "td", align, autolink~)
           }
           buf.write_string("</tr>\n")
         }
@@ -133,7 +137,7 @@ fn render_block_html(block : Block, buf : StringBuilder) -> Unit {
       buf.write_string(escape_html(label))
       buf.write_string("\">\n")
       for child in children {
-        render_block_html(child, buf)
+        render_block_html(child, buf, autolink~)
       }
       buf.write_string("</div>\n")
     }
@@ -147,6 +151,7 @@ fn render_list_item_html(
   buf : StringBuilder,
   tight : Bool,
   is_task_list : Bool,
+  autolink? : Bool = false,
 ) -> Unit {
   // Task list items get a special class
   if is_task_list && !(item.checked is None) {
@@ -166,15 +171,16 @@ fn render_list_item_html(
     // Tight list: render inline content without <p> wrapper
     for child in item.children {
       match child {
-        Paragraph(children~, ..) => render_inlines_html(children, buf)
-        _ => render_block_html(child, buf)
+        Paragraph(children~, ..) =>
+          render_inlines_html(children, buf, autolink~)
+        _ => render_block_html(child, buf, autolink~)
       }
     }
   } else {
     // Loose list: render blocks normally
     buf.write_char('\n')
     for child in item.children {
-      render_block_html(child, buf)
+      render_block_html(child, buf, autolink~)
     }
   }
   buf.write_string("</li>\n")
@@ -187,6 +193,7 @@ fn render_table_cell_html(
   buf : StringBuilder,
   tag : String,
   align : TableAlign,
+  autolink? : Bool = false,
 ) -> Unit {
   buf.write_char('<')
   buf.write_string(tag)
@@ -197,7 +204,7 @@ fn render_table_cell_html(
     TableAlign::None => ()
   }
   buf.write_char('>')
-  render_inlines_html(cell.children, buf)
+  render_inlines_html(cell.children, buf, autolink~)
   buf.write_string("</")
   buf.write_string(tag)
   buf.write_string(">\n")
@@ -205,9 +212,13 @@ fn render_table_cell_html(
 
 ///|
 /// Render inline elements to HTML
-fn render_inlines_html(inlines : Array[Inline], buf : StringBuilder) -> Unit {
+fn render_inlines_html(
+  inlines : Array[Inline],
+  buf : StringBuilder,
+  autolink? : Bool = false,
+) -> Unit {
   for inline in inlines {
-    render_inline_html(inline, buf)
+    render_inline_html(inline, buf, autolink~)
   }
 }
 
@@ -222,10 +233,157 @@ fn render_wikilink_destination(target : String, fragment : String) -> String {
 }
 
 ///|
+/// Render text content, optionally turning bare http(s) URLs into anchors.
+fn render_text_html(
+  content : String,
+  buf : StringBuilder,
+  autolink? : Bool = false,
+) -> Unit {
+  if !autolink {
+    buf.write_string(escape_html(content))
+    return
+  }
+  let len = content.length()
+  let mut pos = 0
+  while pos < len {
+    match find_next_url_start(content, pos) {
+      Some(start) => {
+        write_escaped_text_range(content, pos, start, buf)
+        let raw_end = find_url_raw_end(content, start)
+        let url_end = trim_url_end(content, start, raw_end)
+        if url_end > start {
+          let url = content.unsafe_substring(start~, end=url_end)
+          buf.write_string("<a href=\"")
+          buf.write_string(escape_html_attr(url))
+          buf.write_string("\">")
+          buf.write_string(escape_html(url))
+          buf.write_string("</a>")
+          pos = url_end
+        } else {
+          write_escaped_text_range(content, start, raw_end, buf)
+          pos = raw_end
+        }
+      }
+      None => {
+        write_escaped_text_range(content, pos, len, buf)
+        pos = len
+      }
+    }
+  }
+}
+
+///|
+fn write_escaped_text_range(
+  content : String,
+  start : Int,
+  end : Int,
+  buf : StringBuilder,
+) -> Unit {
+  if end > start {
+    buf.write_string(escape_html(content.unsafe_substring(start~, end~)))
+  }
+}
+
+///|
+fn find_next_url_start(content : String, from : Int) -> Int? {
+  let len = content.length()
+  let mut pos = from
+  while pos < len {
+    if is_url_start_at(content, pos) {
+      return Some(pos)
+    }
+    pos = pos + 1
+  }
+  None
+}
+
+///|
+fn is_url_start_at(content : String, pos : Int) -> Bool {
+  let boundary = pos == 0 ||
+    is_url_left_boundary(ascii_char_at(content, pos - 1))
+  boundary &&
+  (
+    string_has_prefix_at(content, pos, "https://") ||
+    string_has_prefix_at(content, pos, "http://")
+  )
+}
+
+///|
+fn ascii_char_at(content : String, pos : Int) -> Char {
+  Int::unsafe_to_char(content.code_unit_at(pos).to_int())
+}
+
+///|
+fn string_has_prefix_at(content : String, pos : Int, prefix : String) -> Bool {
+  let end = pos + prefix.length()
+  end <= content.length() && content.unsafe_substring(start=pos, end~) == prefix
+}
+
+///|
+fn is_url_left_boundary(c : Char) -> Bool {
+  c == ' ' ||
+  c == '\n' ||
+  c == '\t' ||
+  c == '\r' ||
+  c == '(' ||
+  c == '[' ||
+  c == '{' ||
+  c == '<'
+}
+
+///|
+fn find_url_raw_end(content : String, start : Int) -> Int {
+  let len = content.length()
+  let mut end = start
+  while end < len && !is_url_stop_char(ascii_char_at(content, end)) {
+    end = end + 1
+  }
+  end
+}
+
+///|
+fn is_url_stop_char(c : Char) -> Bool {
+  c == ' ' ||
+  c == '\n' ||
+  c == '\t' ||
+  c == '\r' ||
+  c == '<' ||
+  c == '"' ||
+  c == '\''
+}
+
+///|
+fn trim_url_end(content : String, start : Int, raw_end : Int) -> Int {
+  let mut end = raw_end
+  while end > start &&
+        is_url_trailing_punctuation(ascii_char_at(content, end - 1)) {
+    end = end - 1
+  }
+  end
+}
+
+///|
+fn is_url_trailing_punctuation(c : Char) -> Bool {
+  c == '.' ||
+  c == ',' ||
+  c == ';' ||
+  c == ':' ||
+  c == '!' ||
+  c == '?' ||
+  c == ')' ||
+  c == ']' ||
+  c == '}'
+}
+
+///|
 /// Render a single inline element to HTML
-fn render_inline_html(inline : Inline, buf : StringBuilder) -> Unit {
+fn render_inline_html(
+  inline : Inline,
+  buf : StringBuilder,
+  autolink? : Bool = false,
+) -> Unit {
   match inline {
-    Inline::Text(content~, ..) => buf.write_string(escape_html(content))
+    Inline::Text(content~, ..) => render_text_html(content, buf, autolink~)
     Inline::Code(content~, ..) => {
       buf.write_string("<code>")
       buf.write_string(escape_html(content))
@@ -242,17 +400,17 @@ fn render_inline_html(inline : Inline, buf : StringBuilder) -> Unit {
     }
     Inline::Emphasis(children~, ..) => {
       buf.write_string("<em>")
-      render_inlines_html(children, buf)
+      render_inlines_html(children, buf, autolink~)
       buf.write_string("</em>")
     }
     Inline::Strong(children~, ..) => {
       buf.write_string("<strong>")
-      render_inlines_html(children, buf)
+      render_inlines_html(children, buf, autolink~)
       buf.write_string("</strong>")
     }
     Inline::Strikethrough(children~, ..) => {
       buf.write_string("<del>")
-      render_inlines_html(children, buf)
+      render_inlines_html(children, buf, autolink~)
       buf.write_string("</del>")
     }
     Inline::Link(children~, url~, title~, ..) => {
@@ -358,14 +516,32 @@ fn escape_html_attr(s : String) -> String {
 
 ///|
 /// Parse markdown and render to HTML
-pub fn md_to_html(source : String, wikilinks? : Bool = false) -> String {
+pub fn md_to_html(
+  source : String,
+  wikilinks? : Bool = false,
+  autolink? : Bool = false,
+) -> String {
   let result = parse(source, wikilinks~)
-  render_html(result.document)
+  render_html(result.document, autolink~)
+}
+
+///|
+/// Parse markdown and render to HTML with bare URL text autolinked
+pub fn md_to_html_autolink(
+  source : String,
+  wikilinks? : Bool = false,
+) -> String {
+  let result = parse(source, wikilinks~)
+  render_html(result.document, autolink=true)
 }
 
 ///|
 /// Parse markdown and render to HTML (strict mode)
-pub fn md_to_html_strict(source : String, wikilinks? : Bool = false) -> String {
+pub fn md_to_html_strict(
+  source : String,
+  wikilinks? : Bool = false,
+  autolink? : Bool = false,
+) -> String {
   let result = parse(source, strict=true, wikilinks~)
-  render_html(result.document)
+  render_html(result.document, autolink~)
 }

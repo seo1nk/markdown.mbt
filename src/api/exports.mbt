@@ -46,9 +46,21 @@ pub fn md_to_html(source : String) -> String {
 }
 
 ///|
+/// Parse markdown with bare URL autolinks enabled and return HTML directly
+pub fn md_to_html_with_autolink(source : String) -> String {
+  @markdown.md_to_html(source, autolink=true)
+}
+
+///|
 /// Parse markdown with wikilinks enabled and return HTML directly
 pub fn md_to_html_with_wikilinks(source : String) -> String {
   @markdown.md_to_html(source, wikilinks=true)
+}
+
+///|
+/// Parse markdown with wikilinks and bare URL autolinks enabled and return HTML directly
+pub fn md_to_html_with_wikilinks_and_autolink(source : String) -> String {
+  @markdown.md_to_html(source, wikilinks=true, autolink=true)
 }
 
 ///|
@@ -88,6 +100,15 @@ pub fn md_to_ast_json_with_wikilinks(source : String) -> String {
 pub fn md_render_html(handle : Int) -> String {
   match ast_documents.get(handle) {
     Some(doc) => @markdown.render_html(doc)
+    None => ""
+  }
+}
+
+///|
+/// Render handle's document to HTML with bare URL autolinks enabled
+pub fn md_render_html_with_autolink(handle : Int) -> String {
+  match ast_documents.get(handle) {
+    Some(doc) => @markdown.render_html(doc, autolink=true)
     None => ""
   }
 }
