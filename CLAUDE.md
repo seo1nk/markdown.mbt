@@ -17,18 +17,25 @@ src/
 ├── block_parser_table.mbt          # GFM table parsing
 ├── block_parser_html.mbt           # HTML block parsing
 ├── block_parser_frontmatter.mbt    # YAML frontmatter parsing
-├── inline_parser.mbt               # Inline parser (single-pass)
+├── inline_parser.mbt               # Inline parser dispatcher (single-pass)
+├── inline_parser_emphasis.mbt      # `*` / `_` emphasis + strong (single-pass)
 ├── inline_parser_link.mbt          # Links, images, wikilinks, footnote refs
 ├── inline_parser_strict.mbt        # CommonMark delimiter-stack emphasis
 ├── incremental.mbt                 # Incremental parsing (EditInfo)
-├── serializer.mbt                  # Lossless serializer + md_parse_and_render
+├── serializer.mbt                  # Lossless block serializer + md_parse_and_render
+├── serializer_inline.mbt           # Inline serialization (text, emphasis, links, ...)
 ├── renderer.mbt                    # HTML renderer + md_to_html
 ├── renderer_autolink.mbt           # Bare-URL autolink boundary helpers
 ├── plugin.mbt                      # CodeBlockInfo + RenderOptions + parse_code_block_info
 ├── api/                            # FFI exports for JS/WASM consumers
 ├── experimental/
 │   ├── crdt/                       # CRDT experimental code (isolated)
-│   └── multipass/                  # Experimental multi-pass inline parser
+│   ├── multipass/                  # Experimental multi-pass inline parser
+│   ├── notebook/                   # Notebook cells / executable code blocks
+│   ├── mdx/                        # MDX (JSX-in-Markdown) extraction
+│   ├── slide/                      # Slide-deck splitting
+│   ├── tui/                        # Terminal renderer
+│   └── purify/                     # HTML sanitization
 ├── bench.mbt                       # Document parse/serialize/roundtrip benches
 ├── bench_inline.mbt                # Inline parser benches
 ├── bench_table.mbt                 # GFM table benches
