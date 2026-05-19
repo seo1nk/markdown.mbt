@@ -103,12 +103,8 @@ fn LiteralOpts::nested(self : LiteralOpts) -> LiteralOpts {
 
 ///|
 /// Emit `<span class="md-marker" aria-hidden="true">…</span>` for the given
-/// syntax characters. We deliberately do *not* run the marker text through
-/// the generic `escape_html` because Markdown markers can only contain
-/// ASCII punctuation / digits / spaces; the only character that needs HTML
-/// escaping is `>` (blockquote prefix), which the caller handles via
-/// `write_marker_lit` / dedicated paths. Saving the per-call alloc was
-/// measurable in `bench_renderer_literal`.
+/// syntax characters. The text is HTML-escaped — the only marker that
+/// actually contains a special character is the blockquote prefix `> `.
 fn write_marker(buf : StringBuilder, text : String) -> Unit {
   if text.is_empty() {
     return
@@ -214,13 +210,13 @@ fn write_image_preview_slot(
   title : String,
 ) -> Unit {
   buf.write_string("<img class=\"md-image-preview\" src=\"")
-  escape_html_into(buf, url)
+  escape_html_attr_into(buf, url)
   buf.write_string("\" alt=\"")
-  escape_html_into(buf, alt)
+  escape_html_attr_into(buf, alt)
   buf.write_char('"')
   if !title.is_empty() {
     buf.write_string(" title=\"")
-    escape_html_into(buf, title)
+    escape_html_attr_into(buf, title)
     buf.write_char('"')
   }
   buf.write_string(" loading=\"lazy\" />")
@@ -345,21 +341,24 @@ fn strip_trailing_newline(s : String) -> String {
 }
 
 ///|
-/// Prefix every non-empty line of an HTML fragment with a `> ` marker span,
-/// re-joining with literal `\n` characters. Drops empty lines (matching the
-/// serializer's blockquote behavior).
-fn prefix_blockquote_lines(html : String) -> String {
-  let stripped = strip_trailing_newline(html)
-  let buf = StringBuilder::new()
+/// Append every non-empty line of an HTML fragment to `out`, each
+/// prefixed by a `> ` marker span. Drops empty lines (matching the
+/// serializer's blockquote behavior). The fragment is taken as a
+/// `StringView` so the caller can hand in a `StringBuilder.to_string()`
+/// result without forcing an additional copy.
+fn write_blockquote_prefixed(out : StringBuilder, html : String) -> Unit {
+  let stripped = if html.has_suffix("\n") {
+    html.view(end_offset=html.length() - 1)
+  } else {
+    html.view()
+  }
   for line in stripped.split("\n") {
-    let line_str = line.to_owned()
-    if !line_str.is_empty() {
-      write_marker(buf, "> ")
-      buf.write_string(line_str)
-      buf.write_char('\n')
+    if !line.is_empty() {
+      write_marker(out, "> ")
+      out.write_string(line.to_owned())
+      out.write_char('\n')
     }
   }
-  buf.to_string()
 }
 
 // =============================================================================
@@ -428,7 +427,7 @@ fn render_block_literal(
       for child in children {
         let child_buf = StringBuilder::new()
         render_block_literal(child, child_buf, opts.nested())
-        buf.write_string(prefix_blockquote_lines(child_buf.to_string()))
+        write_blockquote_prefixed(buf, child_buf.to_string())
       }
       buf.write_string("</blockquote>")
     }
