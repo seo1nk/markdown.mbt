@@ -555,3 +555,16 @@ test "image preview: combines with positions" {
   @debug.debug_inspect(html.contains("data-src-start"), content="true")
   @debug.debug_inspect(html.contains("md-image-preview"), content="true")
 }
+
+///|
+test "positions: footnote body blocks are NOT annotated with relative offsets" {
+  let html = md_to_html_literal("[^1]: body line\n", positions=true)
+  // The outer footnote div is annotated — that's the absolute span.
+  @debug.debug_inspect(
+    html.contains("<div class=\"footnote\" id=\"fn-1\" data-src-start"),
+    content="true",
+  )
+  // The inner <p> must NOT carry data-src-* (it would be relative to
+  // the footnote's content scanner, not the document).
+  @debug.debug_inspect(html.contains("<p data-src"), content="false")
+}

@@ -462,13 +462,18 @@ fn render_block_literal(
       buf.write_char('>')
       write_marker(buf, "[^" + label + "]: ")
       let mut first = true
+      // Children are parsed from the footnote's content as a sub-document,
+      // so their spans are relative to that buffer rather than absolute
+      // document offsets — disable position annotations on the recursion
+      // (the outer `<div class="footnote">` annotation is enough; clicks
+      // inside the body walk up to it).
       for child in children {
         if !first {
           buf.write_char('\n')
           write_marker(buf, "    ")
         }
         let child_buf = StringBuilder::new()
-        render_block_literal(child, child_buf, opts)
+        render_block_literal(child, child_buf, opts.nested())
         buf.write_string(strip_trailing_newline(child_buf.to_string()))
         first = false
       }
