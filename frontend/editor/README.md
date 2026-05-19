@@ -183,6 +183,11 @@ block element, forces a monospace font and `white-space: pre-wrap`, then
 adds back semantic typography (bold for `<strong>`, italic for `<em>`,
 dim color for marker spans) without affecting the character grid.
 
+[`docs/literal-html-reference.md`](../../docs/literal-html-reference.md)
+catalogues every emitted class, ARIA role, data attribute and CSS
+variable, with theming recipes (light theme, hidden-marker preview,
+click-to-edit highlight, per-language code-block tinting, …).
+
 Helper classes `.md-overlay`, `.md-overlay-source`, `.md-overlay-rendered`
 provide a stacking layout for two coincident layers — one for a source
 view (textarea or syntax-highlighted `<pre>`) and one for the literal

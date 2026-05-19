@@ -160,7 +160,11 @@ in place — DOM identity, focus and selection survive.
 
 ## CSS contract
 
-The overlay stylesheet
+See [`docs/literal-html-reference.md`](./literal-html-reference.md) for
+the complete catalog of HTML structures, classes, ARIA roles, data
+attributes, CSS variables and themeing recipes.
+
+In short: the overlay stylesheet
 [`@mizchi/markdown/editor/overlay.css`](../frontend/editor/overlay.css)
 provides:
 
