@@ -11,7 +11,7 @@ import type {
 } from "mdast";
 import type { Position } from "unist";
 // @ts-ignore - no type declarations for syntree_api.js
-import { highlight } from "../js/syntree_api.js";
+import { highlight } from "./syntree_api.js";
 
 // =============================================================================
 // SVG Sanitizer
