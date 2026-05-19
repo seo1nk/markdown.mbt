@@ -28,6 +28,7 @@
       "types": "./dist/frontend/editor/index.d.ts"
     },
     "./editor/style.css": "./dist/frontend/editor/style.css",
+    "./editor/overlay.css": "./dist/frontend/editor/overlay.css",
     "./highlight": {
       "import": "./dist/frontend/highlight/index.js",
       "types": "./dist/frontend/highlight/index.d.ts"

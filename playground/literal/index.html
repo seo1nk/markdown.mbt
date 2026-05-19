@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markdown literal renderer demo</title>
+    <link rel="stylesheet" href="../../frontend/editor/overlay.css" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0d1117;
+        --fg: #c9d1d9;
+        --border: #30363d;
+        --md-literal-text: #c9d1d9;
+        --md-literal-bg: transparent;
+        --md-literal-heading: #f0f6fc;
+        --md-literal-link: #58a6ff;
+        --md-literal-code: #f0883e;
+        --md-literal-marker: #6e7681;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      h1 {
+        margin: 0 0 16px;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      p.lede {
+        margin: 0 0 24px;
+        max-width: 60em;
+        color: #8b949e;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      .toolbar {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 13px;
+      }
+      .toolbar label { cursor: pointer; user-select: none; }
+      .columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .pane {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 16px;
+        min-height: 60vh;
+        background: #161b22;
+      }
+      .pane h2 {
+        margin: 0 0 12px;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #8b949e;
+      }
+      textarea.source-edit {
+        width: 100%;
+        min-height: 50vh;
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        color: inherit;
+        border: 0;
+        outline: none;
+        resize: vertical;
+        font: inherit;
+        white-space: pre-wrap;
+      }
+      .overlay-host {
+        position: relative;
+        min-height: 50vh;
+      }
+      .overlay-host .md-literal {
+        margin: 0;
+        padding: 0;
+      }
+      /* Overlay mode: stack rendered output on top of a highlighted source view. */
+      body.overlay .overlay-host .md-overlay-source {
+        position: absolute;
+        inset: 0;
+        opacity: 0.5;
+        pointer-events: none;
+        color: #79c0ff;
+        white-space: pre-wrap;
+      }
+      body.overlay .overlay-host .md-overlay-rendered {
+        position: absolute;
+        inset: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Markdown literal renderer</h1>
+    <p class="lede">
+      Source-preserving rendering: the visible text equals the lossless
+      serialization of the document, so the rendered HTML can be overlaid
+      on a syntax-highlighted source view glyph-for-glyph. Markers
+      (<code>#</code>, <code>**</code>, <code>`</code>, list bullets, fence
+      ticks, blockquote <code>&gt;</code>) are wrapped in
+      <code>&lt;span class="md-marker" aria-hidden="true"&gt;</code> so
+      screen readers skip them.
+    </p>
+    <div class="toolbar">
+      <label>
+        <input type="checkbox" id="overlay-toggle" />
+        Overlay source + rendered (verify glyph alignment)
+      </label>
+      <span id="invariant-state"></span>
+    </div>
+    <div class="columns">
+      <section class="pane">
+        <h2>Markdown source</h2>
+        <textarea class="source-edit" id="source"></textarea>
+      </section>
+      <section class="pane">
+        <h2>Literal renderer output</h2>
+        <div class="overlay-host" id="host">
+          <pre class="md-literal md-overlay-source" id="source-view"></pre>
+          <div class="md-literal md-overlay-rendered" id="rendered"></div>
+        </div>
+      </section>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

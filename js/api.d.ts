@@ -144,6 +144,25 @@ export function toHtml(source: string, options?: MarkdownOptions): string;
 export function toMarkdown(source: string, options?: MarkdownOptions): string;
 
 /**
+ * Render markdown using the "literal" mode, which preserves syntax markers
+ * (`#`, `*`, `` ` ``, list bullets, fence ticks, blockquote `>` …) wrapped
+ * in `<span class="md-marker" aria-hidden="true">…</span>` inside the
+ * rendered HTML.
+ *
+ * The visible text of the output (HTML tags stripped, basic character
+ * references decoded) is byte-for-byte equal to `toMarkdown(source)`.
+ * Combined with `font-family: monospace; white-space: pre-wrap;` (see
+ * `@mizchi/markdown/editor/overlay.css`) this lets a consumer overlay the
+ * rendered output on a syntax-highlighted source view so that every glyph
+ * lines up.
+ *
+ * @example
+ * toHtmlLiteral("## Intro\n");
+ * // => '<h2><span class="md-marker" aria-hidden="true">## </span>Intro</h2>\n'
+ */
+export function toHtmlLiteral(source: string, options?: MarkdownOptions): string;
+
+/**
  * Create a new document handle from markdown source.
  * Use this for incremental parsing scenarios.
  *

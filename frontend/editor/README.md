@@ -157,11 +157,60 @@ TypeScript config to use it. If you re-export the editor's types and rely on
 TS type-checking, ensure `@luna_ui/luna` is resolvable in your
 `tsconfig.json`.
 
+## Literal (source-preserving) rendering
+
+For tools that need to overlay rendered Markdown on a syntax-highlighted
+source view, the package ships a second rendering mode whose visible text
+(HTML tags stripped, basic character references decoded) is byte-for-byte
+equal to the lossless serialization of the document. Markdown markers
+(`#`, `**`, `_`, `` ` ``, list bullets, fence ticks, blockquote `>`, …)
+are wrapped in `<span class="md-marker" aria-hidden="true">…</span>` so
+screen readers skip them while sighted users still see them in flow.
+
+```tsx
+import { toHtmlLiteral } from "@mizchi/markdown";
+import "@mizchi/markdown/editor/overlay.css";
+
+<div
+  class="md-literal"
+  // eslint-disable-next-line react/no-danger
+  dangerouslySetInnerHTML={{ __html: toHtmlLiteral(source) }}
+/>;
+```
+
+`overlay.css` is opt-in: it resets layout-shifting defaults on every
+block element, forces a monospace font and `white-space: pre-wrap`, then
+adds back semantic typography (bold for `<strong>`, italic for `<em>`,
+dim color for marker spans) without affecting the character grid.
+
+Helper classes `.md-overlay`, `.md-overlay-source`, `.md-overlay-rendered`
+provide a stacking layout for two coincident layers — one for a source
+view (textarea or syntax-highlighted `<pre>`) and one for the literal
+renderer output — so VRT can pixel-diff that they line up.
+
+The repo's `playground/literal/` is a runnable demo, and
+`e2e/literal-overlay.spec.ts` runs the alignment assertion across a fixed
+sample set on every CI run.
+
+### Accessibility notes
+
+- Marker spans carry `aria-hidden="true"`. Assistive tech never reads the
+  raw Markdown syntax; it gets `<h1>`, `<strong>`, `<a href>`, `<ul>` etc.
+- The renderer preserves heading level (`#` → `<h1>`, `##` → `<h2>`, …)
+  so document outlines stay correct.
+- `<img>` becomes `<span class="md-image" role="img" aria-label="…">` so
+  the alt text reaches screen readers while the literal `![alt](url)`
+  bytes remain visible.
+- `<a href>` is preserved; the `[text](url)` characters all sit inside
+  the anchor so the link target is unambiguous to keyboard users.
+
 ## Exports
 
 | Subpath | Contents |
 |---|---|
+| `@mizchi/markdown` | `parse`, `toHtml`, `toMarkdown`, `toHtmlLiteral`, `createDocument` |
 | `@mizchi/markdown/editor` | `SyntaxHighlightEditor`, `SyntaxHighlightEditorHandle`, `SyntaxHighlightEditorProps`, plus the `highlight` re-exports below |
 | `@mizchi/markdown/editor/style.css` | Editor stylesheet |
+| `@mizchi/markdown/editor/overlay.css` | CSS reset + typography for the literal renderer |
 | `@mizchi/markdown/highlight` | `loadHighlighter`, `highlight`, `highlightIfLoaded`, `preloadHighlighter`, `getLoadedHighlighter`, `normalizeHighlightLanguage` |
 | `@mizchi/markdown/highlight/<lang>` | Direct (non-lazy) import of a single highlighter |

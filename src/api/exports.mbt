@@ -135,6 +135,20 @@ pub fn md_to_ast_json_with_wikilinks(source : String) -> String {
   document_to_json(result.document)
 }
 
+///|
+/// Parse markdown and render using the source-preserving "literal" mode.
+/// The visible text of the output (with HTML tags stripped) equals the
+/// lossless serialization of the parsed document.
+pub fn md_to_html_literal(source : String) -> String {
+  @markdown.md_to_html_literal(source)
+}
+
+///|
+/// Same as `md_to_html_literal`, with wikilinks parsing enabled.
+pub fn md_to_html_literal_with_wikilinks(source : String) -> String {
+  @markdown.md_to_html_literal(source, wikilinks=true)
+}
+
 // =============================================================================
 // Handle-based render APIs
 // =============================================================================
