@@ -9,8 +9,11 @@
  * 2. Generates MoonBit test files comparing our output with remark-gfm
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Parse command line arguments
 const noSkip = process.argv.includes('--no-skip');

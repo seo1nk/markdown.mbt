@@ -47,7 +47,7 @@ jobs:
           moon test src/html_tests --target js
       - name: Moon test
         run: |
-          moon test src/tui --target all
+          moon test src/experimental/tui --target all
       - name: Test Bench
         run: moon bench
       - name: Component build (wasm)

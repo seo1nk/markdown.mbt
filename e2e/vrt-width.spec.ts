@@ -1,7 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { measureLineDrift } from "./helpers/measure-line";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const FIXTURE = readFileSync(
   resolve(__dirname, "fixtures/width-fixture.md"),
