@@ -156,4 +156,73 @@ test.describe("literal renderer overlay invariant", () => {
     await page.keyboard.press("Escape");
     await expect(page.locator("body")).toHaveAttribute("data-mode", "preview");
   });
+
+  test("partial update: unchanged blocks keep their DOM identity", async ({ page }) => {
+    await page.goto("/literal/");
+    // Use the textarea API to set the source we want to start from.
+    await page.evaluate(() => {
+      const ta = document.getElementById("source") as HTMLTextAreaElement;
+      ta.value = "# Stable heading\n\nfirst paragraph\n\nsecond paragraph\n";
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    // Capture node-identity refs by their initial position.
+    await page.evaluate(() => {
+      const win = window as unknown as { __initial: HTMLElement[] };
+      win.__initial = Array.from(
+        (document.getElementById("rendered") as HTMLElement).children,
+      ) as HTMLElement[];
+    });
+    // Edit only the second paragraph by appending text. The heading and
+    // first paragraph nodes must be the same JS objects after the patch.
+    await page.evaluate(() => {
+      const ta = document.getElementById("source") as HTMLTextAreaElement;
+      ta.value = "# Stable heading\n\nfirst paragraph\n\nsecond paragraph plus extra\n";
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const identity = await page.evaluate(() => {
+      const win = window as unknown as { __initial: HTMLElement[] };
+      const now = Array.from(
+        (document.getElementById("rendered") as HTMLElement).children,
+      );
+      return win.__initial.map((node, i) => now[i] === node);
+    });
+    expect(identity[0]).toBe(true); // heading reused
+    expect(identity[1]).toBe(true); // first paragraph reused
+    expect(identity[2]).toBe(false); // second paragraph replaced
+    // Patch stats badge reports exactly one replaced element (the
+    // changed paragraph); reused count includes text-node separators so
+    // we only assert non-zero rather than an exact value.
+    const stats = await page.locator("#patch-stats").innerText();
+    expect(stats).toContain("replaced 1");
+    expect(stats).toMatch(/reused \d+/);
+  });
+
+  test("partial update: shifted blocks keep DOM identity, only attrs change", async ({ page }) => {
+    await page.goto("/literal/");
+    await page.evaluate(() => {
+      const ta = document.getElementById("source") as HTMLTextAreaElement;
+      ta.value = "# heading\n\nfirst paragraph\n";
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await page.evaluate(() => {
+      const win = window as unknown as { __p: Element };
+      win.__p = (document.getElementById("rendered") as HTMLElement).querySelector("p")!;
+    });
+    // Edit the heading: trailing paragraph's `data-src-start` shifts but
+    // its body is identical, so the patcher should update the attribute
+    // in place rather than replacing the node.
+    await page.evaluate(() => {
+      const ta = document.getElementById("source") as HTMLTextAreaElement;
+      ta.value = "# heading XX\n\nfirst paragraph\n";
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const sameNode = await page.evaluate(() => {
+      const win = window as unknown as { __p: Element };
+      const p = (document.getElementById("rendered") as HTMLElement).querySelector("p");
+      return p === win.__p;
+    });
+    expect(sameNode).toBe(true);
+    const stats = await page.locator("#patch-stats").innerText();
+    expect(stats).toContain("shifted 1");
+  });
 });

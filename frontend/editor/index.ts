@@ -5,6 +5,13 @@ export {
 } from "./SyntaxHighlightEditor.js";
 
 export {
+  LiteralEditor,
+  patchTopLevelChildren,
+  type LiteralRenderer,
+  type PatchStats,
+} from "./literal-editor.js";
+
+export {
   getLoadedHighlighter,
   highlight,
   highlightIfLoaded,

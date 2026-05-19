@@ -263,6 +263,53 @@ invariant guarantees that the per-character offset within that block is a
 `e2e/literal-overlay.spec.ts` exercises both the alignment invariant and
 the click-to-cursor flow on every CI run.
 
+### Partial DOM updates
+
+For a live preview during editing, re-rendering the full HTML on every
+keystroke and assigning it to `innerHTML` works but drops DOM identity —
+selections, focus and per-node state are lost, and the browser has to
+reflow the entire preview.
+
+The `LiteralEditor` helper in `@mizchi/markdown/editor` keeps a container
+in sync with a source string through a partial-update strategy:
+
+```ts
+import { toHtmlLiteral } from "@mizchi/markdown";
+import { LiteralEditor } from "@mizchi/markdown/editor";
+import "@mizchi/markdown/editor/overlay.css";
+
+const editor = new LiteralEditor(
+  document.getElementById("preview")!,
+  (src) => toHtmlLiteral(src, { positions: true }),
+  initialSource,
+);
+
+textarea.addEventListener("input", () => {
+  const stats = editor.setSource(textarea.value);
+  // stats: { reused, replaced, shifted, inserted, removed }
+});
+```
+
+Internally, each call to `setSource(next)`:
+
+1. Renders `next` to HTML through the supplied renderer.
+2. Diffs the resulting top-level child nodes (elements *and* the
+   text-node separators between them) against the current DOM.
+3. Skips the unchanged prefix/suffix.
+4. For pairs in the middle range where the only difference is a shifted
+   `data-src-start` / `data-src-end`, patches the attribute values in
+   place — DOM identity, focus and selection are preserved.
+5. Replaces only the genuinely-changed pairs and adjusts the tail for
+   length differences.
+
+Returned `PatchStats` (`reused`, `replaced`, `shifted`, `inserted`,
+`removed`) let callers report or test the partial-update behaviour. The
+helper is framework-agnostic: it takes a renderer function and a
+container element and makes no assumptions about UI libraries.
+
+`patchTopLevelChildren(container, newHtml)` is exposed separately for
+callers that manage their own state.
+
 ## Exports
 
 | Subpath | Contents |

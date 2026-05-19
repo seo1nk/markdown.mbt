@@ -1,22 +1,26 @@
 /**
  * Demo entry for the literal renderer.
  *
- * Three modes:
+ * Three behaviours wired together:
  *
- *  - Preview: shows `toHtmlLiteral(source, { positions: true })` injected
- *    as HTML. Clicking anywhere flips the page into "Edit" mode with the
- *    cursor placed at the source offset corresponding to the clicked
- *    glyph.
- *  - Edit:    a plain `<textarea>` over the same source. Pressing Escape
- *    (or unfocusing) flips back to Preview.
- *  - Overlay: source view + rendered view stacked at the same coords for
- *    visual / VRT verification.
+ *  - Preview mode shows `toHtmlLiteral(source, { positions: true })`.
+ *    Clicking flips into edit mode with the cursor placed at the source
+ *    offset under the click.
+ *  - Edit mode is a plain textarea over the same source. Typing in it
+ *    triggers a *partial* re-render that diffs the new HTML against the
+ *    current DOM and replaces only the top-level blocks that actually
+ *    changed (see `LiteralEditor`). Press Escape (or unfocus) to flip
+ *    back.
+ *  - Overlay mode stacks a faded source view on top of the rendered view
+ *    so the alignment can be verified visually.
  *
- * The invariant indicator at the top reports whether stripping HTML from
- * the rendered output yields the same string as `toMarkdown(source)`.
+ * A live stats badge reports how many blocks were reused vs replaced vs
+ * shifted on the latest update — useful for verifying that the partial-
+ * update path is doing its job.
  */
 
 import { toHtmlLiteral, toMarkdown } from "../../js/api.js";
+import { LiteralEditor } from "../../frontend/editor/literal-editor.js";
 
 const SAMPLE = [
   "# Compression Dictionary Transport 用の Toolkit",
@@ -50,15 +54,17 @@ const sourceViewEl = document.getElementById("source-view") as HTMLPreElement;
 const invariantEl = document.getElementById("invariant-state") as HTMLSpanElement;
 const overlayToggle = document.getElementById("overlay-toggle") as HTMLInputElement;
 const cursorIndicatorEl = document.getElementById("cursor-indicator") as HTMLSpanElement | null;
+const patchStatsEl = document.getElementById("patch-stats") as HTMLSpanElement | null;
 
 sourceEl.value = SAMPLE;
 
-function render(): void {
-  const src = sourceEl.value;
-  const html = toHtmlLiteral(src, { positions: true });
-  renderedEl.innerHTML = html;
-  sourceViewEl.textContent = src;
-  const visible = stripHtml(html);
+const renderLiteral = (src: string): string =>
+  toHtmlLiteral(src, { positions: true });
+
+const editor = new LiteralEditor(renderedEl, renderLiteral, SAMPLE);
+
+function refreshInvariant(src: string): void {
+  const visible = stripHtml(renderedEl.innerHTML);
   const normalized = toMarkdown(src);
   if (visible === normalized) {
     invariantEl.textContent = "✓ overlay invariant holds";
@@ -70,6 +76,18 @@ function render(): void {
   }
 }
 
+function update(src: string): void {
+  const stats = editor.setSource(src);
+  sourceViewEl.textContent = src;
+  if (patchStatsEl) {
+    patchStatsEl.textContent =
+      `patch: reused ${stats.reused} · replaced ${stats.replaced}` +
+      ` · shifted ${stats.shifted} · inserted ${stats.inserted}` +
+      ` · removed ${stats.removed}`;
+  }
+  refreshInvariant(src);
+}
+
 function stripHtml(html: string): string {
   const tmp = document.createElement("template");
   tmp.innerHTML = html;
@@ -77,41 +95,24 @@ function stripHtml(html: string): string {
 }
 
 // =============================================================================
-// Click-to-cursor: map a click in the rendered preview to a source offset.
+// Click-to-cursor
 // =============================================================================
 
-/**
- * Find the nearest ancestor (or self) of `node` that carries
- * `data-src-start`. Returns `null` if no such element exists.
- */
 function findPositionedAncestor(node: Node | null): HTMLElement | null {
   let el = node instanceof Element ? node : node?.parentElement ?? null;
   while (el) {
-    if (el instanceof HTMLElement && el.dataset.srcStart != null) {
-      return el;
-    }
+    if (el instanceof HTMLElement && el.dataset.srcStart != null) return el;
     el = el.parentElement;
   }
   return null;
 }
 
-/**
- * Count text characters from the start of `root` up to but not including
- * the position represented by (`node`, `offset`). This is the per-DOM
- * equivalent of textContent.slice(0, offsetWithinRoot).length, computed
- * via a TreeWalker so we don't materialise the whole string.
- */
 function visibleOffsetWithin(root: Element, target: Node, targetOffset: number): number {
   if (target === root) {
     let count = 0;
     for (const child of root.childNodes) {
-      if (child.nodeType === Node.TEXT_NODE) {
-        count += (child as Text).data.length;
-      } else if (child instanceof Element) {
-        count += (child.textContent ?? "").length;
-      }
-      // childIndex offset semantics: caretRangeFromPoint usually returns a
-      // text node + offset, so this branch is rare.
+      if (child.nodeType === Node.TEXT_NODE) count += (child as Text).data.length;
+      else if (child instanceof Element) count += (child.textContent ?? "").length;
     }
     return Math.min(count, targetOffset);
   }
@@ -119,19 +120,14 @@ function visibleOffsetWithin(root: Element, target: Node, targetOffset: number):
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let current = walker.nextNode() as Text | null;
   while (current) {
-    if (current === target) {
-      return count + targetOffset;
-    }
+    if (current === target) return count + targetOffset;
     count += current.data.length;
     current = walker.nextNode() as Text | null;
   }
   return count;
 }
 
-/** Compute the source offset for a (clientX, clientY) point in the preview. */
 function sourceOffsetFromPoint(x: number, y: number): number | null {
-  // Prefer the modern Range API; fall back to caretPositionFromPoint where
-  // available (Firefox / older WebKit).
   const range =
     (document as Document & {
       caretRangeFromPoint?: (x: number, y: number) => Range | null;
@@ -145,19 +141,18 @@ function sourceOffsetFromPoint(x: number, y: number): number | null {
 }
 
 // =============================================================================
-// Preview ↔ Edit toggling
+// Mode toggling
 // =============================================================================
 
 function setMode(mode: "preview" | "edit"): void {
   document.body.dataset.mode = mode;
   if (mode === "preview") {
-    render();
+    update(sourceEl.value);
   }
 }
 
 function focusSourceAt(offset: number): void {
   setMode("edit");
-  // Defer until the textarea is laid out / focusable.
   requestAnimationFrame(() => {
     sourceEl.focus();
     const clamped = Math.max(0, Math.min(offset, sourceEl.value.length));
@@ -169,7 +164,6 @@ function focusSourceAt(offset: number): void {
 }
 
 renderedEl.addEventListener("click", (event) => {
-  // Allow normal navigation when clicking on actual links.
   if ((event.target as HTMLElement | null)?.closest("a")) return;
   const offset = sourceOffsetFromPoint(event.clientX, event.clientY);
   if (offset == null) return;
@@ -188,14 +182,15 @@ sourceEl.addEventListener("blur", () => {
   setMode("preview");
 });
 
+// Live updates while editing — the partial-update path keeps unchanged
+// blocks' DOM nodes intact, so this stays cheap.
 sourceEl.addEventListener("input", () => {
-  // Re-render in the background so that, once the user leaves edit mode,
-  // the invariant indicator reflects the latest source.
-  render();
+  update(sourceEl.value);
 });
 
 overlayToggle.addEventListener("change", () => {
   document.body.classList.toggle("overlay", overlayToggle.checked);
 });
 
+update(SAMPLE);
 setMode("preview");
