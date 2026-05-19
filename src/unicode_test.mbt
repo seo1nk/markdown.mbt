@@ -540,7 +540,7 @@ test "String.get_char with Japanese" {
 test "String.view with Japanese" {
   let s = "Hello世界Goodbye"
   let v = s.view(start_offset=5, end_offset=7)
-  @debug.debug_inspect(v.to_string(), content=(
+  @debug.debug_inspect(v.to_owned(), content=(
     #|"世界"
   ))
 }
@@ -638,14 +638,14 @@ test "CRITICAL: view() with emoji - index semantics" {
   let s = "A😀B"
   // view() uses offsets - let's check if they're code point or UTF-16 based
   let v1 = s.view(start_offset=0, end_offset=1)
-  @debug.debug_inspect(v1.to_string(), content=(
+  @debug.debug_inspect(v1.to_owned(), content=(
     #|"A"
   ))
 
   // view(1, 3) should give 😀 if UTF-16 based
   // view(1, 2) should give 😀 if code point based
   let v2 = s.view(start_offset=1, end_offset=3) // Try UTF-16 semantics
-  @debug.debug_inspect(v2.to_string(), content=(
+  @debug.debug_inspect(v2.to_owned(), content=(
     #|"😀"
   ))
 }

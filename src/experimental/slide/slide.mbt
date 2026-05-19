@@ -116,7 +116,7 @@ pub fn SlideDocument::get_slide_source(
       if start >= end {
         ""
       } else {
-        self.source[start:end].to_string()
+        self.source[start:end].to_owned()
       }
     }
     None => ""

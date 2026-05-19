@@ -51,7 +51,7 @@ fn parse_attrs_from_meta(meta : String) -> CodeBlockAttrs {
   // Split by whitespace and parse each attribute
   let parts = split_by_whitespace(content)
   for part in parts {
-    let trimmed = part.trim_start(chars=" \t").trim_end(chars=" \t").to_string()
+    let trimmed = part.trim_start(chars=" \t").trim_end(chars=" \t").to_owned()
     if trimmed.is_empty() {
       continue
     }
@@ -125,7 +125,7 @@ fn split_by_comma(s : String) -> Array[String] {
         .to_string()
         .trim_start(chars=" ")
         .trim_end(chars=" ")
-        .to_string()
+        .to_owned()
       if part.length() > 0 {
         result.push(part)
       }
@@ -138,7 +138,7 @@ fn split_by_comma(s : String) -> Array[String] {
     .to_string()
     .trim_start(chars=" ")
     .trim_end(chars=" ")
-    .to_string()
+    .to_owned()
   if final_part.length() > 0 {
     result.push(final_part)
   }

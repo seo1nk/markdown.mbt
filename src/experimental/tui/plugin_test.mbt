@@ -209,7 +209,7 @@ fn reference_line_number_highlighter(
 
   // Code with line numbers
   for i, line in lines {
-    if i < lines.length() - 1 || !line.to_string().is_empty() {
+    if i < lines.length() - 1 || !line.to_owned().is_empty() {
       buf.write_string(dim)
       let num = (i + 1).to_string()
       // Right-align line numbers
@@ -219,7 +219,7 @@ fn reference_line_number_highlighter(
       buf.write_string(num)
       buf.write_string(" │ ")
       buf.write_string(reset)
-      buf.write_string(line.to_string())
+      buf.write_string(line.to_owned())
       buf.write_string("\n")
     }
   }

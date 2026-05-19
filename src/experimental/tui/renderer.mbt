@@ -51,8 +51,8 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
       let lines = code.split("\n").collect()
       let mut max_width = 0
       for i, line in lines {
-        if i < lines.length() - 1 || !line.to_string().is_empty() {
-          let w = line.to_string().iter().count()
+        if i < lines.length() - 1 || !line.to_owned().is_empty() {
+          let w = line.to_owned().iter().count()
           if w > max_width {
             max_width = w
           }
@@ -87,13 +87,13 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
 
       // Code content with right border
       for i, line in lines {
-        if i < lines.length() - 1 || !line.to_string().is_empty() {
+        if i < lines.length() - 1 || !line.to_owned().is_empty() {
           buf.write_string(dim)
           buf.write_string("│")
           buf.write_string(reset)
           buf.write_string(cyan)
           buf.write_string(" ")
-          let line_str = line.to_string()
+          let line_str = line.to_owned()
           buf.write_string(line_str)
           let padding = max_width - line_str.iter().count()
           buf.write_string(" ".repeat(padding))
@@ -117,9 +117,9 @@ fn render_block_tui(block : @markdown.Block, buf : StringBuilder) -> Unit {
       buf.write_string(cyan)
       let lines = code.split("\n").collect()
       for i, line in lines {
-        if i < lines.length() - 1 || !line.to_string().is_empty() {
+        if i < lines.length() - 1 || !line.to_owned().is_empty() {
           buf.write_string("    ")
-          buf.write_string(line.to_string())
+          buf.write_string(line.to_owned())
           buf.write_string("\n")
         }
       }

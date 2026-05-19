@@ -23,11 +23,11 @@ test "notebook_from_markdown: basic notebook" {
     #|let y = x + 1
     #|```
   let notebook = notebook_from_markdown("test.md", source)
-  assert_eq(notebook.path, "test.md")
-  assert_eq(notebook.cells.length(), 2)
-  assert_eq(notebook.cells[0].id, "data")
-  assert_eq(notebook.cells[1].id, "result")
-  assert_eq(notebook.frontmatter.get("title"), Some("Test Notebook"))
+  @debug.assert_eq(notebook.path, "test.md")
+  @debug.assert_eq(notebook.cells.length(), 2)
+  @debug.assert_eq(notebook.cells[0].id, "data")
+  @debug.assert_eq(notebook.cells[1].id, "result")
+  @debug.assert_eq(notebook.frontmatter.get("title"), Some("Test Notebook"))
 }
 
 ///|
@@ -47,11 +47,11 @@ test "notebook_from_markdown: execution order" {
   let notebook = notebook_from_markdown("test.md", source)
 
   // Should have 3 cells
-  assert_eq(notebook.cells.length(), 3)
+  @debug.assert_eq(notebook.cells.length(), 3)
 
   // Execution order should be a -> b -> c
   let order = notebook.get_execution_order()
-  assert_eq(order.length(), 3)
+  @debug.assert_eq(order.length(), 3)
   fn find_idx(arr : Array[Cell], target : String) -> Int {
     for i, cell in arr {
       if cell.id == target {
@@ -85,8 +85,8 @@ test "notebook_from_markdown: non-executable blocks ignored" {
   let notebook = notebook_from_markdown("test.md", source)
 
   // Only the moonbit cell with :cell= should be included
-  assert_eq(notebook.cells.length(), 1)
-  assert_eq(notebook.cells[0].id, "data")
+  @debug.assert_eq(notebook.cells.length(), 1)
+  @debug.assert_eq(notebook.cells[0].id, "data")
 }
 
 // =============================================================================
@@ -107,7 +107,7 @@ test "NotebookSession: create and query" {
 
   // Check cell IDs
   let ids = session.get_cell_ids()
-  assert_eq(ids.length(), 2)
+  @debug.assert_eq(ids.length(), 2)
 
   // Note: deps are added to references, but edges are built from
   // variable name matches (defines vs references).
@@ -152,9 +152,9 @@ test "notebook validation: duplicate definition" {
   let errors = notebook.validate()
 
   // Should detect duplicate definition of 'x'
-  assert_eq(errors.length(), 1)
+  @debug.assert_eq(errors.length(), 1)
   match errors[0] {
-    DuplicateDefinition(var_name, _) => assert_eq(var_name, "x")
+    DuplicateDefinition(var_name, _) => @debug.assert_eq(var_name, "x")
     _ => fail("Expected DuplicateDefinition error")
   }
 }
@@ -166,47 +166,47 @@ test "notebook validation: duplicate definition" {
 ///|
 test "parse_code_block_attrs: simple cell" {
   let (info, attrs) = parse_code_block_attrs("moonbit {:cell=data}")
-  assert_eq(info.lang, "moonbit")
-  assert_eq(attrs.cell, Some("data"))
-  assert_eq(attrs.executable, true)
+  @debug.assert_eq(info.lang, "moonbit")
+  @debug.assert_eq(attrs.cell, Some("data"))
+  @debug.assert_eq(attrs.executable, true)
 }
 
 ///|
 test "parse_code_block_attrs: cell with deps" {
   let (info, attrs) = parse_code_block_attrs("js {:cell=viz :deps=data,input}")
-  assert_eq(info.lang, "js")
-  assert_eq(attrs.cell, Some("viz"))
-  assert_eq(attrs.deps.length(), 2)
-  assert_eq(attrs.deps[0], "data")
-  assert_eq(attrs.deps[1], "input")
+  @debug.assert_eq(info.lang, "js")
+  @debug.assert_eq(attrs.cell, Some("viz"))
+  @debug.assert_eq(attrs.deps.length(), 2)
+  @debug.assert_eq(attrs.deps[0], "data")
+  @debug.assert_eq(attrs.deps[1], "input")
 }
 
 ///|
 test "parse_code_block_attrs: hidden cell" {
   let (_, attrs) = parse_code_block_attrs("python {:cell=setup :hide}")
-  assert_eq(attrs.hidden, true)
-  assert_eq(attrs.cell, Some("setup"))
+  @debug.assert_eq(attrs.hidden, true)
+  @debug.assert_eq(attrs.cell, Some("setup"))
 }
 
 ///|
 test "parse_code_block_attrs: output format" {
   let (_, attrs) = parse_code_block_attrs("moonbit {:cell=chart :output=html}")
-  assert_eq(attrs.output_format, Html)
+  @debug.assert_eq(attrs.output_format, Html)
 }
 
 ///|
 test "parse_code_block_attrs: exec only" {
   let (_, attrs) = parse_code_block_attrs("javascript {:exec}")
-  assert_eq(attrs.executable, true)
-  assert_eq(attrs.cell, None)
+  @debug.assert_eq(attrs.executable, true)
+  @debug.assert_eq(attrs.cell, None)
 }
 
 ///|
 test "parse_code_block_attrs: no attrs" {
   let (info, attrs) = parse_code_block_attrs("rust")
-  assert_eq(info.lang, "rust")
-  assert_eq(attrs.executable, false)
-  assert_eq(attrs.cell, None)
+  @debug.assert_eq(info.lang, "rust")
+  @debug.assert_eq(attrs.executable, false)
+  @debug.assert_eq(attrs.cell, None)
 }
 
 // =============================================================================
@@ -218,9 +218,9 @@ test "parse_inline_directive: basic" {
   let result = parse_inline_directive("<Inline source=\"./intro.md\" />")
   match result {
     Some(dir) => {
-      assert_eq(dir.source, "./intro.md")
-      assert_eq(dir.section, None)
-      assert_eq(dir.recursive, true)
+      @debug.assert_eq(dir.source, "./intro.md")
+      @debug.assert_eq(dir.section, None)
+      @debug.assert_eq(dir.recursive, true)
     }
     None => fail("Expected Some")
   }
@@ -233,8 +233,8 @@ test "parse_inline_directive: with section" {
   )
   match result {
     Some(dir) => {
-      assert_eq(dir.source, "./doc.md")
-      assert_eq(dir.section, Some("#intro"))
+      @debug.assert_eq(dir.source, "./doc.md")
+      @debug.assert_eq(dir.section, Some("#intro"))
     }
     None => fail("Expected Some")
   }
@@ -246,7 +246,7 @@ test "parse_inline_directive: not recursive" {
     "<Inline source=\"./doc.md\" recursive=\"false\" />",
   )
   match result {
-    Some(dir) => assert_eq(dir.recursive, false)
+    Some(dir) => @debug.assert_eq(dir.recursive, false)
     None => fail("Expected Some")
   }
 }
@@ -254,7 +254,7 @@ test "parse_inline_directive: not recursive" {
 ///|
 test "parse_inline_directive: not an inline" {
   let result = parse_inline_directive("<Button>Click</Button>")
-  assert_eq(result, None)
+  @debug.assert_eq(result, None)
 }
 
 // =============================================================================
@@ -284,10 +284,10 @@ test "build_dependency_graph: simple dependency" {
     state: Idle,
   }
   let graph = build_dependency_graph([cell1, cell2])
-  assert_eq(graph.edges.length(), 1)
-  assert_eq(graph.edges[0].from, "a")
-  assert_eq(graph.edges[0].to, "b")
-  assert_eq(graph.edges[0].variable, "x")
+  @debug.assert_eq(graph.edges.length(), 1)
+  @debug.assert_eq(graph.edges[0].from, "a")
+  @debug.assert_eq(graph.edges[0].to, "b")
+  @debug.assert_eq(graph.edges[0].variable, "x")
 }
 
 ///|
@@ -325,7 +325,7 @@ test "build_dependency_graph: execution order" {
   let graph = build_dependency_graph([cell_c, cell_a, cell_b])
 
   // Order should be a -> b -> c regardless of input order
-  assert_eq(graph.execution_order.length(), 3)
+  @debug.assert_eq(graph.execution_order.length(), 3)
   // a should come before b
   fn find_idx(arr : Array[String], target : String) -> Int {
     for i, s in arr {
@@ -383,7 +383,7 @@ test "get_stale_cells: cascading stale" {
   let stale = get_stale_cells(graph, "a")
 
   // Both b and c should be stale when a changes
-  assert_eq(stale.length(), 2)
+  @debug.assert_eq(stale.length(), 2)
   assert_true(stale.contains("b"))
   assert_true(stale.contains("c"))
 }
@@ -397,9 +397,9 @@ test "analyze_moonbit_variables: let binding" {
   let (defines, _) = analyze_cell_variables(
     "let numbers = [1, 2, 3]\nlet sum = fold(numbers, 0, add)", "moonbit",
   )
-  assert_eq(defines.length(), 2)
-  assert_eq(defines[0], "numbers")
-  assert_eq(defines[1], "sum")
+  @debug.assert_eq(defines.length(), 2)
+  @debug.assert_eq(defines[0], "numbers")
+  @debug.assert_eq(defines[1], "sum")
 }
 
 ///|
@@ -408,14 +408,14 @@ test "analyze_moonbit_variables: pub exports" {
   let (defines, exports, _) = analyze_cell_variables_full(source, "moonbit")
 
   // All definitions
-  assert_eq(defines.length(), 4)
+  @debug.assert_eq(defines.length(), 4)
   assert_true(defines.contains("x"))
   assert_true(defines.contains("private_y"))
   assert_true(defines.contains("compute"))
   assert_true(defines.contains("helper"))
 
   // Only pub definitions are exports
-  assert_eq(exports.length(), 2)
+  @debug.assert_eq(exports.length(), 2)
   assert_true(exports.contains("x"))
   assert_true(exports.contains("compute"))
 }
@@ -424,11 +424,11 @@ test "analyze_moonbit_variables: pub exports" {
 test "analyze_moonbit_variables: struct and enum" {
   let source = "pub struct Point { x: Int, y: Int }\npub enum Color { Red, Green, Blue }\nstruct Private { a: Int }"
   let (defines, exports, _) = analyze_cell_variables_full(source, "moonbit")
-  assert_eq(defines.length(), 3)
+  @debug.assert_eq(defines.length(), 3)
   assert_true(defines.contains("Point"))
   assert_true(defines.contains("Color"))
   assert_true(defines.contains("Private"))
-  assert_eq(exports.length(), 2)
+  @debug.assert_eq(exports.length(), 2)
   assert_true(exports.contains("Point"))
   assert_true(exports.contains("Color"))
 }
@@ -437,9 +437,9 @@ test "analyze_moonbit_variables: struct and enum" {
 test "analyze_js_variables: const and function" {
   let source = "const data = [1, 2, 3]\nfunction process(x) { return x * 2 }"
   let (defines, _) = analyze_cell_variables(source, "javascript")
-  assert_eq(defines.length(), 2)
-  assert_eq(defines[0], "data")
-  assert_eq(defines[1], "process")
+  @debug.assert_eq(defines.length(), 2)
+  @debug.assert_eq(defines[0], "data")
+  @debug.assert_eq(defines[1], "process")
 }
 
 ///|
@@ -448,8 +448,8 @@ test "analyze_moonbit_variables: references extraction" {
   let (defines, _, references) = analyze_cell_variables_full(source, "moonbit")
 
   // Should define "result"
-  assert_eq(defines.length(), 1)
-  assert_eq(defines[0], "result")
+  @debug.assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines[0], "result")
 
   // Should reference external_data, compute, and value
   assert_true(references.contains("external_data"))
@@ -463,8 +463,8 @@ test "analyze_moonbit_variables: local bindings not referenced" {
   let (defines, _, references) = analyze_cell_variables_full(source, "moonbit")
 
   // Should define "foo"
-  assert_eq(defines.length(), 1)
-  assert_eq(defines[0], "foo")
+  @debug.assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines[0], "foo")
 
   // Local variables x and y should NOT be in references
   assert_false(references.contains("x"))
@@ -479,7 +479,7 @@ test "analyze_moonbit_variables: function references external" {
   )
 
   // Should define and export "process"
-  assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines.length(), 1)
   assert_true(exports.contains("process"))
 
   // Should reference external_config, helper, and data
@@ -492,8 +492,8 @@ test "analyze_moonbit_variables: function references external" {
 test "analyze_moonbit_variables: if expression references" {
   let source = "let result = if condition { then_value } else { else_value }"
   let (defines, _, references) = analyze_cell_variables_full(source, "moonbit")
-  assert_eq(defines.length(), 1)
-  assert_eq(defines[0], "result")
+  @debug.assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines[0], "result")
   assert_true(references.contains("condition"))
   assert_true(references.contains("then_value"))
   assert_true(references.contains("else_value"))
@@ -509,8 +509,8 @@ test "analyze_moonbit_variables: match expression with pattern bindings" {
     #|  }
     #|}
   let (defines, _, references) = analyze_cell_variables_full(source, "moonbit")
-  assert_eq(defines.length(), 1)
-  assert_eq(defines[0], "handle")
+  @debug.assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines[0], "handle")
 
   // x is bound by pattern, should NOT be in references
   assert_false(references.contains("x"))
@@ -523,8 +523,8 @@ test "analyze_moonbit_variables: match expression with pattern bindings" {
 test "analyze_moonbit_variables: array literal references" {
   let source = "let arr = [a, b, compute(c)]"
   let (defines, _, references) = analyze_cell_variables_full(source, "moonbit")
-  assert_eq(defines.length(), 1)
-  assert_eq(defines[0], "arr")
+  @debug.assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines[0], "arr")
   assert_true(references.contains("a"))
   assert_true(references.contains("b"))
   assert_true(references.contains("compute"))
@@ -535,8 +535,8 @@ test "analyze_moonbit_variables: array literal references" {
 test "analyze_moonbit_variables: closure captures external" {
   let source = "let f = fn(x) { x + captured_var }"
   let (defines, _, references) = analyze_cell_variables_full(source, "moonbit")
-  assert_eq(defines.length(), 1)
-  assert_eq(defines[0], "f")
+  @debug.assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines[0], "f")
 
   // x is lambda parameter, should NOT be in references
   assert_false(references.contains("x"))
@@ -553,7 +553,7 @@ test "analyze_moonbit_variables: while loop references" {
     #|  }
     #|}
   let (defines, _, references) = analyze_cell_variables_full(source, "moonbit")
-  assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines.length(), 1)
   assert_true(references.contains("condition"))
   assert_true(references.contains("process"))
   assert_true(references.contains("item"))
@@ -568,8 +568,8 @@ test "analyze_moonbit_variables: nested let bindings" {
     #|  inner
     #|}
   let (defines, _, references) = analyze_cell_variables_full(source, "moonbit")
-  assert_eq(defines.length(), 1)
-  assert_eq(defines[0], "result")
+  @debug.assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines[0], "result")
 
   // temp and inner are local
   assert_false(references.contains("temp"))
@@ -583,7 +583,7 @@ test "analyze_moonbit_variables: nested let bindings" {
 test "analyze_moonbit_variables: pipe operator" {
   let source = "let result = input |> transform |> finalize"
   let (defines, _, references) = analyze_cell_variables_full(source, "moonbit")
-  assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines.length(), 1)
   assert_true(references.contains("input"))
   assert_true(references.contains("transform"))
   assert_true(references.contains("finalize"))
@@ -597,12 +597,12 @@ test "analyze_moonbit_variables: multiple functions" {
   let (defines, exports, references) = analyze_cell_variables_full(
     source, "moonbit",
   )
-  assert_eq(defines.length(), 2)
+  @debug.assert_eq(defines.length(), 2)
   assert_true(defines.contains("helper"))
   assert_true(defines.contains("main_fn"))
 
   // Only main_fn is pub
-  assert_eq(exports.length(), 1)
+  @debug.assert_eq(exports.length(), 1)
   assert_true(exports.contains("main_fn"))
 
   // helper is defined, so not a reference
@@ -616,8 +616,8 @@ test "analyze_moonbit_variables: multiple functions" {
 test "analyze_moonbit_variables: tuple pattern in let" {
   let source = "fn foo() -> Int { let (a, b) = get_pair(); a + b + external }"
   let (defines, _, references) = analyze_cell_variables_full(source, "moonbit")
-  assert_eq(defines.length(), 1)
-  assert_eq(defines[0], "foo")
+  @debug.assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines[0], "foo")
 
   // a and b are local bindings from tuple pattern
   assert_false(references.contains("a"))
@@ -631,7 +631,7 @@ test "analyze_moonbit_variables: tuple pattern in let" {
 test "analyze_moonbit_variables: infix operators" {
   let source = "let sum = left + right * factor"
   let (defines, _, references) = analyze_cell_variables_full(source, "moonbit")
-  assert_eq(defines.length(), 1)
+  @debug.assert_eq(defines.length(), 1)
   assert_true(references.contains("left"))
   assert_true(references.contains("right"))
   assert_true(references.contains("factor"))
@@ -664,7 +664,7 @@ test "check_duplicate_definitions: no duplicates" {
     state: Idle,
   }
   let duplicates = check_duplicate_definitions([cell1, cell2])
-  assert_eq(duplicates.length(), 0)
+  @debug.assert_eq(duplicates.length(), 0)
 }
 
 ///|
@@ -690,7 +690,7 @@ test "check_duplicate_definitions: has duplicate" {
     state: Idle,
   }
   let duplicates = check_duplicate_definitions([cell1, cell2])
-  assert_eq(duplicates.length(), 1)
-  assert_eq(duplicates[0].0, "x")
-  assert_eq(duplicates[0].1.length(), 2)
+  @debug.assert_eq(duplicates.length(), 1)
+  @debug.assert_eq(duplicates[0].0, "x")
+  @debug.assert_eq(duplicates[0].1.length(), 2)
 }

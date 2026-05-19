@@ -292,7 +292,7 @@ priv struct CloserIndex {
 /// Create new empty CloserIndex
 fn CloserIndex::new() -> CloserIndex {
   {
-    backticks: Map::new(),
+    backticks: Map([], capacity=0),
     right_brack: [],
     right_paren: [],
     emphasis_star: [],

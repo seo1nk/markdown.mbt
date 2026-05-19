@@ -559,7 +559,7 @@ fn analyze_js_variables(source : String) -> (Array[String], Array[String]) {
   let references : Array[String] = []
   let lines = split_lines(source)
   for line in lines {
-    let trimmed = line.trim_start(chars=" \t").to_string()
+    let trimmed = line.trim_start(chars=" \t").to_owned()
 
     // const/let/var bindings
     for prefix in ["const ", "let ", "var "] {
