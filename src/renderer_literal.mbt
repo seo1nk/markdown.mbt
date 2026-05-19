@@ -138,6 +138,90 @@ fn write_image_preview_slot(
 }
 
 ///|
+/// Render a fenced code block (or an indented code block normalised to
+/// fenced, with `info=""`). Visible characters: ```` ```info\ncode\n``` ````
+/// followed by a trailing `\n` from the block close.
+fn write_fenced_code(
+  buf : StringBuilder,
+  code : String,
+  info : String,
+  span : Span,
+  opts : LiteralOpts,
+) -> Unit {
+  let fence_len = calc_fence_length(code)
+  let fence = repeat_char('`', fence_len)
+  buf.write_string("<div class=\"md-fenced-code\"")
+  buf.write_string(pos_attrs(span, opts.positions))
+  buf.write_char('>')
+  write_marker(buf, fence + info)
+  buf.write_char('\n')
+  if info.is_empty() {
+    buf.write_string("<pre><code>")
+  } else {
+    let parts = info.split(" ").collect()
+    let lang = if parts.length() > 0 { parts[0].to_owned() } else { info }
+    buf.write_string("<pre><code class=\"language-")
+    buf.write_string(escape_html(lang))
+    buf.write_string("\">")
+  }
+  buf.write_string(escape_html(code))
+  if !code.is_empty() && !code.has_suffix("\n") {
+    buf.write_char('\n')
+  }
+  buf.write_string("</code></pre>")
+  write_marker(buf, fence)
+  buf.write_string("</div>\n")
+}
+
+///|
+/// Open `<ul>` or `<ol>` with optional `contains-task-list` class,
+/// `start=…` for ordered lists (pass 1 to omit), and source-position attrs.
+fn write_list_open(
+  buf : StringBuilder,
+  tag : String,
+  items : Array[ListItem],
+  span : Span,
+  opts : LiteralOpts,
+  ordered_start : Int,
+) -> Unit {
+  let has_task = items.iter().any(fn(item) { !(item.checked is None) })
+  buf.write_char('<')
+  buf.write_string(tag)
+  if has_task {
+    buf.write_string(" class=\"contains-task-list\"")
+  }
+  if ordered_start > 1 {
+    buf.write_string(" start=\"")
+    buf.write_string(ordered_start.to_string())
+    buf.write_char('"')
+  }
+  buf.write_string(pos_attrs(span, opts.positions))
+  buf.write_char('>')
+}
+
+///|
+/// Open `<h{level}>` with optional source-position attrs.
+fn write_heading_open(
+  buf : StringBuilder,
+  level : Int,
+  span : Span,
+  opts : LiteralOpts,
+) -> Unit {
+  buf.write_string("<h")
+  buf.write_string(level.to_string())
+  buf.write_string(pos_attrs(span, opts.positions))
+  buf.write_char('>')
+}
+
+///|
+/// Close `<h{level}>` plus the block-terminating newline.
+fn write_heading_close(buf : StringBuilder, level : Int) -> Unit {
+  buf.write_string("</h")
+  buf.write_string(level.to_string())
+  buf.write_string(">\n")
+}
+
+///|
 /// Compose ` data-src-start="X" data-src-end="Y"` (with a leading space)
 /// when `positions=true`. Otherwise an empty string.
 fn pos_attrs(span : Span, positions : Bool) -> String {
@@ -208,37 +292,25 @@ fn render_block_literal(
       write_marker(buf, "***")
       buf.write_string("</div>\n")
     }
-    Block::Heading(level~, style~, children~, span~, ..) =>
+    Block::Heading(level~, style~, children~, span~, ..) => {
+      write_heading_open(buf, level, span, opts)
       match style {
-        HeadingStyle::Atx => {
-          buf.write_string("<h")
-          buf.write_string(level.to_string())
-          buf.write_string(pos_attrs(span, opts.positions))
-          buf.write_char('>')
+        HeadingStyle::Atx =>
           if !children.is_empty() {
             write_marker(buf, repeat_char('#', level) + " ")
             render_inlines_literal(children, buf, opts)
           } else {
             write_marker(buf, repeat_char('#', level))
           }
-          buf.write_string("</h")
-          buf.write_string(level.to_string())
-          buf.write_string(">\n")
-        }
         HeadingStyle::Setext => {
-          buf.write_string("<h")
-          buf.write_string(level.to_string())
-          buf.write_string(pos_attrs(span, opts.positions))
-          buf.write_char('>')
           render_inlines_literal(children, buf, opts)
           buf.write_char('\n')
           let underline_char = if level == 1 { '=' } else { '-' }
           write_marker(buf, repeat_char(underline_char, 3))
-          buf.write_string("</h")
-          buf.write_string(level.to_string())
-          buf.write_string(">\n")
         }
       }
+      write_heading_close(buf, level)
+    }
     Block::Paragraph(children~, span~, ..) => {
       buf.write_string("<p")
       buf.write_string(pos_attrs(span, opts.positions))
@@ -246,48 +318,11 @@ fn render_block_literal(
       render_inlines_literal(children, buf, opts)
       buf.write_string("</p>\n")
     }
-    Block::FencedCode(info~, code~, span~, ..) => {
-      let fence_len = calc_fence_length(code)
-      let fence = repeat_char('`', fence_len)
-      buf.write_string("<div class=\"md-fenced-code\"")
-      buf.write_string(pos_attrs(span, opts.positions))
-      buf.write_char('>')
-      write_marker(buf, fence + info)
-      buf.write_char('\n')
-      if info.is_empty() {
-        buf.write_string("<pre><code>")
-      } else {
-        let parts = info.split(" ").collect()
-        let lang = if parts.length() > 0 { parts[0].to_owned() } else { info }
-        buf.write_string("<pre><code class=\"language-")
-        buf.write_string(escape_html(lang))
-        buf.write_string("\">")
-      }
-      buf.write_string(escape_html(code))
-      if !code.is_empty() && !code.has_suffix("\n") {
-        buf.write_char('\n')
-      }
-      buf.write_string("</code></pre>")
-      write_marker(buf, fence)
-      buf.write_string("</div>\n")
-    }
-    Block::IndentedCode(code~, span~, ..) => {
-      let fence_len = calc_fence_length(code)
-      let fence = repeat_char('`', fence_len)
-      buf.write_string("<div class=\"md-fenced-code\"")
-      buf.write_string(pos_attrs(span, opts.positions))
-      buf.write_char('>')
-      write_marker(buf, fence)
-      buf.write_char('\n')
-      buf.write_string("<pre><code>")
-      buf.write_string(escape_html(code))
-      if !code.is_empty() && !code.has_suffix("\n") {
-        buf.write_char('\n')
-      }
-      buf.write_string("</code></pre>")
-      write_marker(buf, fence)
-      buf.write_string("</div>\n")
-    }
+    Block::FencedCode(info~, code~, span~, ..) =>
+      write_fenced_code(buf, code, info, span, opts)
+    Block::IndentedCode(code~, span~, ..) =>
+      // The serializer canonicalises indented code to fenced (`info=""`).
+      write_fenced_code(buf, code, "", span, opts)
     Block::Blockquote(children~, span~, ..) => {
       buf.write_string("<blockquote")
       buf.write_string(pos_attrs(span, opts.positions))
@@ -304,28 +339,12 @@ fn render_block_literal(
       buf.write_string("</blockquote>")
     }
     Block::BulletList(items~, span~, ..) => {
-      let has_task = items.iter().any(fn(item) { !(item.checked is None) })
-      buf.write_string(if has_task {
-        "<ul class=\"contains-task-list\""
-      } else {
-        "<ul"
-      })
-      buf.write_string(pos_attrs(span, opts.positions))
-      buf.write_char('>')
+      write_list_open(buf, "ul", items, span, opts, 1)
       render_bullet_items_literal(items, buf, 0, opts)
       buf.write_string("</ul>")
     }
     Block::OrderedList(start~, items~, span~, ..) => {
-      let has_task = items.iter().any(fn(item) { !(item.checked is None) })
-      let open_tag = if has_task { "<ol class=\"contains-task-list\"" } else { "<ol" }
-      buf.write_string(open_tag)
-      if start != 1 {
-        buf.write_string(" start=\"")
-        buf.write_string(start.to_string())
-        buf.write_char('"')
-      }
-      buf.write_string(pos_attrs(span, opts.positions))
-      buf.write_char('>')
+      write_list_open(buf, "ol", items, span, opts, start)
       render_ordered_items_literal(items, buf, 0, start, opts)
       buf.write_string("</ol>")
     }
@@ -554,188 +573,3 @@ fn render_list_item_content_literal(
   }
 }
 
-// =============================================================================
-// Inline rendering
-// =============================================================================
-
-///|
-fn render_inlines_literal(
-  inlines : Array[Inline],
-  buf : StringBuilder,
-  opts : LiteralOpts,
-) -> Unit {
-  for inline in inlines {
-    render_inline_literal(inline, buf, opts)
-  }
-}
-
-///|
-fn render_inline_literal(
-  inline : Inline,
-  buf : StringBuilder,
-  opts : LiteralOpts,
-) -> Unit {
-  // Inline spans come from the inline parser and are relative to the
-  // surrounding block's content, not the document. They are intentionally
-  // omitted from `data-src-*` annotations — the block-level ancestor's
-  // span is enough to recover precise source offsets via the visible-text
-  // invariant.
-  match inline {
-    Inline::Text(content~, ..) => buf.write_string(escape_html(content))
-    Inline::SoftBreak(..) => buf.write_char('\n')
-    Inline::HardBreak(..) => {
-      write_marker(buf, "\\")
-      buf.write_char('\n')
-    }
-    Inline::Emphasis(children~, ..) => {
-      buf.write_string("<em>")
-      write_marker(buf, "*")
-      render_inlines_literal(children, buf, opts)
-      write_marker(buf, "*")
-      buf.write_string("</em>")
-    }
-    Inline::Strong(children~, ..) => {
-      buf.write_string("<strong>")
-      write_marker(buf, "**")
-      render_inlines_literal(children, buf, opts)
-      write_marker(buf, "**")
-      buf.write_string("</strong>")
-    }
-    Inline::Strikethrough(children~, ..) => {
-      buf.write_string("<del>")
-      write_marker(buf, "~~")
-      render_inlines_literal(children, buf, opts)
-      write_marker(buf, "~~")
-      buf.write_string("</del>")
-    }
-    Inline::Code(content~, ..) => {
-      let backticks = calc_code_span_backticks(content)
-      let tick_str = repeat_char('`', backticks)
-      let needs_padding = content.length() > 0 &&
-        ({
-          let first = content.get_char(0)
-          let last = content.get_char(content.length() - 1)
-          first == Some('`') || last == Some('`')
-        })
-      buf.write_string("<code>")
-      write_marker(buf, tick_str)
-      if needs_padding {
-        buf.write_char(' ')
-      }
-      buf.write_string(escape_html(content))
-      if needs_padding {
-        buf.write_char(' ')
-      }
-      write_marker(buf, tick_str)
-      buf.write_string("</code>")
-    }
-    Inline::WikiLink(target~, label~, fragment~, ..) => {
-      let href = if fragment.is_empty() {
-        target
-      } else {
-        target + "#" + fragment
-      }
-      buf.write_string("<a class=\"md-wikilink\" href=\"")
-      buf.write_string(escape_html_attr(href))
-      buf.write_string("\">")
-      write_marker(buf, "[[")
-      buf.write_string(escape_html(target))
-      if !fragment.is_empty() {
-        buf.write_string(escape_html("#" + fragment))
-      }
-      if !label.is_empty() {
-        write_marker(buf, "|")
-        buf.write_string(escape_html(label))
-      }
-      write_marker(buf, "]]")
-      buf.write_string("</a>")
-    }
-    Inline::Link(children~, url~, title~, ..) => {
-      buf.write_string("<a href=\"")
-      buf.write_string(escape_html_attr(url))
-      buf.write_char('"')
-      if !title.is_empty() {
-        buf.write_string(" title=\"")
-        buf.write_string(escape_html_attr(title))
-        buf.write_char('"')
-      }
-      buf.write_char('>')
-      write_marker(buf, "[")
-      render_inlines_literal(children, buf, opts)
-      let trailing = if title.is_empty() {
-        "](" + url + ")"
-      } else {
-        "](" + url + " \"" + title + "\")"
-      }
-      write_marker(buf, trailing)
-      buf.write_string("</a>")
-    }
-    Inline::RefLink(children~, label~, ..) => {
-      buf.write_string("<a class=\"md-reflink\" href=\"#ref-")
-      buf.write_string(escape_html_attr(label))
-      buf.write_string("\">")
-      write_marker(buf, "[")
-      render_inlines_literal(children, buf, opts)
-      write_marker(buf, "][" + label + "]")
-      buf.write_string("</a>")
-    }
-    Inline::Autolink(url~, is_email~, ..) => {
-      let href = if is_email { "mailto:" + url } else { url }
-      buf.write_string("<a href=\"")
-      buf.write_string(escape_html_attr(href))
-      buf.write_string("\">")
-      write_marker(buf, "<")
-      buf.write_string(escape_html(url))
-      write_marker(buf, ">")
-      buf.write_string("</a>")
-    }
-    Inline::Image(alt~, url~, title~, ..) => {
-      buf.write_string("<span class=\"md-image\" role=\"img\" aria-label=\"")
-      buf.write_string(escape_html_attr(alt))
-      buf.write_string("\">")
-      if opts.image_preview {
-        write_image_preview_slot(buf, url, alt, title)
-      }
-      write_marker(buf, "![")
-      buf.write_string(escape_html(alt))
-      let trailing = if title.is_empty() {
-        "](" + url + ")"
-      } else {
-        "](" + url + " \"" + title + "\")"
-      }
-      write_marker(buf, trailing)
-      buf.write_string("</span>")
-    }
-    Inline::RefImage(alt~, label~, ..) => {
-      // Reference images don't carry an URL inline; the slot stays empty.
-      // The consumer can resolve `data-md-image-ref` against their own
-      // definition map and assign a `src` later.
-      buf.write_string("<span class=\"md-image\" role=\"img\" aria-label=\"")
-      buf.write_string(escape_html_attr(alt))
-      buf.write_string("\">")
-      if opts.image_preview {
-        buf.write_string("<img class=\"md-image-preview\" data-md-image-ref=\"")
-        buf.write_string(escape_html_attr(label))
-        buf.write_string("\" alt=\"")
-        buf.write_string(escape_html_attr(alt))
-        buf.write_string("\" loading=\"lazy\" />")
-      }
-      write_marker(buf, "![")
-      buf.write_string(escape_html(alt))
-      write_marker(buf, "][" + label + "]")
-      buf.write_string("</span>")
-    }
-    Inline::HtmlInline(html~, ..) => {
-      buf.write_string("<span class=\"md-html-inline\">")
-      buf.write_string(escape_html(html))
-      buf.write_string("</span>")
-    }
-    Inline::FootnoteReference(label~, ..) => {
-      buf.write_string("<sup class=\"footnote-ref\"><a href=\"#fn-")
-      buf.write_string(escape_html_attr(label))
-      buf.write_string("\">")
-      write_marker(buf, "[^" + label + "]")
-      buf.write_string("</a></sup>")
-    }
-  }
-}

@@ -26,6 +26,8 @@ src/
 ├── serializer_inline.mbt           # Inline serialization (text, emphasis, links, ...)
 ├── renderer.mbt                    # HTML renderer + md_to_html
 ├── renderer_autolink.mbt           # Bare-URL autolink boundary helpers
+├── renderer_literal.mbt            # Source-preserving HTML renderer (block dispatch + helpers)
+├── renderer_literal_inline.mbt     # Inline rendering for the literal renderer
 ├── plugin.mbt                      # CodeBlockInfo + RenderOptions + parse_code_block_info
 ├── api/                            # FFI exports for JS/WASM consumers
 ├── experimental/

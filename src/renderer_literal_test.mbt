@@ -213,7 +213,7 @@ test "invariant: thematic break" {
 
 ///|
 test "invariant: mixed document" {
-  assert_overlay_invariant(
+  let src =
     #|# Title
     #|
     #|A paragraph with *em*, **strong**, and `code`.
@@ -225,8 +225,7 @@ test "invariant: mixed document" {
     #|
     #|See <https://example.com> for details.
     #|
-    ,
-  )
+  assert_overlay_invariant(src)
 }
 
 // =============================================================================
