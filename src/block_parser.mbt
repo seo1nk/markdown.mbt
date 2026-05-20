@@ -275,7 +275,6 @@ fn BlockParser::try_parse_blockquote(self : BlockParser, start : Int) -> Block? 
   )
 }
 
-
 ///|
 /// Parse paragraph (default block type)
 fn BlockParser::parse_paragraph(self : BlockParser, start : Int) -> Block? {
@@ -360,8 +359,6 @@ fn BlockParser::parse_paragraph(self : BlockParser, start : Int) -> Block? {
     ),
   )
 }
-
-
 
 ///|
 /// Read leading trivia (whitespace before content)

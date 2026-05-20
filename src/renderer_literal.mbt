@@ -1,37 +1,71 @@
 ///| Source-preserving HTML renderer ("literal" mode).
+
 ///|
+
 ///| Renders a `Document` to HTML such that the visible text — i.e. the
+
 ///| concatenation of all character data once HTML tags are stripped and
+
 ///| character references are decoded — equals the lossless serialization
+
 ///| of the document (`serialize(doc)`). Markdown markers (`#`, `**`, `_`,
+
 ///| `` ` ``, list bullets, fence ticks, blockquote `>`, etc.) are wrapped
+
 ///| in `<span class="md-marker" aria-hidden="true">…</span>`.
+
 ///|
+
 ///| Combined with `font-family: monospace; white-space: pre-wrap;` (and the
+
 ///| CSS reset shipped at `@mizchi/markdown/editor/overlay.css`), this lets a
+
 ///| consumer overlay the rendered output on top of a syntax-highlighted
+
 ///| source view and have every glyph land at the same character grid.
+
 ///|
+
 ///| Semantic HTML elements (`<h1>` – `<h6>`, `<strong>`, `<em>`, `<code>`,
+
 ///| `<a>`, `<ul>` / `<ol>` / `<li>`, `<blockquote>`, `<pre><code>`, …) carry
+
 ///| the role for assistive technology; the marker spans are
+
 ///| `aria-hidden="true"` so screen readers skip them.
+
 ///|
+
 ///| When `positions=true` the renderer also emits `data-src-start` /
+
 ///| `data-src-end` attributes (character offsets into the original source)
+
 ///| on **block-level** elements (`<h1>` – `<h6>`, `<p>`, `<ul>`, `<ol>`,
+
 ///| `<li>`, `<blockquote>`, `<pre>`, `<table>`, `<th>` / `<td>`, the
+
 ///| thematic-break / fenced-code wrappers, footnote definitions). Inline
+
 ///| spans coming from the inline parser are recorded relative to the
+
 ///| block's content, not to the document, so they are not directly usable
+
 ///| as document offsets and are intentionally omitted.
+
 ///|
+
 ///| For a "click in the preview → place cursor in the source" editor, walk
+
 ///| up the DOM to the nearest ancestor with `data-src-start`. The literal
+
 ///| renderer's visible-text invariant guarantees that the offset of a
+
 ///| character inside that ancestor's text content equals
+
 ///| `data-src-start + that-character's-index-within-the-ancestor`, so
+
 ///| `caretRangeFromPoint` plus a quick text-node walk yields the exact
+
 ///| source offset.
 
 ///|
@@ -512,9 +546,7 @@ fn render_table_literal(
   buf.write_string("</div>")
   // Separator row — purely syntactic, so the entire row is hidden from
   // AT. Visible text matches the serializer: `| :-- | --- | …`.
-  buf.write_string(
-    "<div class=\"md-table-separator\" aria-hidden=\"true\">",
-  )
+  buf.write_string("<div class=\"md-table-separator\" aria-hidden=\"true\">")
   write_marker(buf, "|")
   for align in alignments {
     let sep = match align {
@@ -673,11 +705,7 @@ fn render_list_item_content_literal(
         }
         buf.write_string("<ol>")
         render_ordered_items_literal(
-          nested_items,
-          buf,
-          nested_indent,
-          nested_start,
-          opts,
+          nested_items, buf, nested_indent, nested_start, opts,
         )
         buf.write_string("</ol>")
       }
@@ -691,4 +719,3 @@ fn render_list_item_content_literal(
     buf.write_char('\n')
   }
 }
-

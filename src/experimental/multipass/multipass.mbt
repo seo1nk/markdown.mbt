@@ -112,7 +112,9 @@ fn tokenize_inline(scanner : @markdown.Scanner) -> Array[InlineToken] {
 
 ///|
 /// Tokenize and build CloserIndex in a single pass
-fn tokenize_with_index(scanner : @markdown.Scanner) -> (Array[InlineToken], CloserIndex) {
+fn tokenize_with_index(
+  scanner : @markdown.Scanner,
+) -> (Array[InlineToken], CloserIndex) {
   let tokens : Array[InlineToken] = []
   let idx = CloserIndex::new()
   let mut prev_char : Char = ' ' // Start of line treated as whitespace
@@ -152,8 +154,10 @@ fn tokenize_with_index(scanner : @markdown.Scanner) -> (Array[InlineToken], Clos
           } else {
             // _ has additional word boundary constraints
             (
-              left_flank && (!right_flank || @markdown.is_unicode_punctuation(prev_char)),
-              right_flank && (!left_flank || @markdown.is_unicode_punctuation(next_char)),
+              left_flank &&
+              (!right_flank || @markdown.is_unicode_punctuation(prev_char)),
+              right_flank &&
+              (!left_flank || @markdown.is_unicode_punctuation(next_char)),
             )
           }
           if may_open || may_close {
@@ -998,7 +1002,11 @@ fn MultiPassParser::parse_ref_image(
     }
   }
   let label = label_buf.to_string()
-  let inline = @markdown.Inline::RefImage(alt~, label~, span=@markdown.Span::new(image_start, pos))
+  let inline = @markdown.Inline::RefImage(
+    alt~,
+    label~,
+    span=@markdown.Span::new(image_start, pos),
+  )
   Some((inline, pos))
 }
 
@@ -1024,7 +1032,11 @@ fn MultiPassParser::parse_autolink(
 
       // Check if it's an email
       let is_email = url.contains("@") && !url.has_prefix("http")
-      let inline = @markdown.Inline::Autolink(url~, is_email~, span=@markdown.Span::new(start, pos))
+      let inline = @markdown.Inline::Autolink(
+        url~,
+        is_email~,
+        span=@markdown.Span::new(start, pos),
+      )
       return Some((inline, pos))
     } else if c == ' ' || c == '\t' || c == '\n' {
       // Invalid autolink
@@ -1061,7 +1073,10 @@ fn MultiPassParser::parse_strikethrough(
           return None
         }
         let children = [
-          @markdown.Inline::Text(content~, span=@markdown.Span::new(opener_start + 2, closer_start)),
+          @markdown.Inline::Text(
+            content~,
+            span=@markdown.Span::new(opener_start + 2, closer_start),
+          ),
         ]
         let inline = @markdown.Inline::Strikethrough(
           children~,
@@ -1095,7 +1110,10 @@ fn process_escapes_str(
         // Backslash + newline = hard break
         if buf.to_string().length() > 0 {
           result.push(
-            @markdown.Inline::Text(content=buf.to_string(), span=@markdown.Span::new(text_start, i)),
+            @markdown.Inline::Text(
+              content=buf.to_string(),
+              span=@markdown.Span::new(text_start, i),
+            ),
           )
           buf.reset()
         }
@@ -1123,7 +1141,12 @@ fn process_escapes_str(
   }
   let content = buf.to_string()
   if content.length() > 0 {
-    result.push(@markdown.Inline::Text(content~, span=@markdown.Span::new(text_start, end)))
+    result.push(
+      @markdown.Inline::Text(
+        content~,
+        span=@markdown.Span::new(text_start, end),
+      ),
+    )
   }
 }
 
@@ -1456,7 +1479,8 @@ fn MultiPassParser::parse_range(
             if is_backslash_hard {
               // Remove trailing backslash from previous text if any
               match result.last() {
-                Some(@markdown.Inline::Text(content~, span~)) if content.length() > 0 =>
+                Some(@markdown.Inline::Text(content~, span~)) if content.length() >
+                  0 =>
                   // Check if last char is backslash
                   if content.get_char(content.length() - 1) == Some('\\') {
                     let _ = result.pop()
@@ -1490,7 +1514,9 @@ fn MultiPassParser::parse_range(
               )
             } else {
               result.push(
-                @markdown.Inline::SoftBreak(span=@markdown.Span::new(tok_start, tok_start + 1)),
+                @markdown.Inline::SoftBreak(
+                  span=@markdown.Span::new(tok_start, tok_start + 1),
+                ),
               )
             }
             pos = tok_start + 1

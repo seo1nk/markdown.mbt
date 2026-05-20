@@ -1,4 +1,5 @@
 ///| Link, image, wikilink and footnote reference parsing
+
 ///| (split from inline_parser.mbt).
 
 ///|

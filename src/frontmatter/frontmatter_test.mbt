@@ -6,14 +6,18 @@ fn make_fm(entries : Array[(String, String)]) -> @md.Frontmatter {
 ///|
 test "get_string: existing key" {
   let fm = make_fm([("title", "Hello"), ("description", "World")])
-  @debug.debug_inspect(get_string(fm, "title"), content=(
-    #|Some("Hello")
-
-  ))
-  @debug.debug_inspect(get_string(fm, "description"), content=(
-    #|Some("World")
-
-  ))
+  @debug.debug_inspect(
+    get_string(fm, "title"),
+    content=(
+      #|Some("Hello")
+    ),
+  )
+  @debug.debug_inspect(
+    get_string(fm, "description"),
+    content=(
+      #|Some("World")
+    ),
+  )
 }
 
 ///|
@@ -57,15 +61,24 @@ test "get_list: comma-separated" {
   let fm = make_fm([("tags", "foo, bar, baz")])
   let list = get_list(fm, "tags")
   @debug.debug_inspect(list.length(), content="3")
-  @debug.debug_inspect(list[0], content=(
-    #|"foo"
-  ))
-  @debug.debug_inspect(list[1], content=(
-    #|"bar"
-  ))
-  @debug.debug_inspect(list[2], content=(
-    #|"baz"
-  ))
+  @debug.debug_inspect(
+    list[0],
+    content=(
+      #|"foo"
+    ),
+  )
+  @debug.debug_inspect(
+    list[1],
+    content=(
+      #|"bar"
+    ),
+  )
+  @debug.debug_inspect(
+    list[2],
+    content=(
+      #|"baz"
+    ),
+  )
 }
 
 ///|
@@ -73,9 +86,12 @@ test "get_list: single item" {
   let fm = make_fm([("tags", "single")])
   let list = get_list(fm, "tags")
   @debug.debug_inspect(list.length(), content="1")
-  @debug.debug_inspect(list[0], content=(
-    #|"single"
-  ))
+  @debug.debug_inspect(
+    list[0],
+    content=(
+      #|"single"
+    ),
+  )
 }
 
 ///|
@@ -83,15 +99,24 @@ test "get_list: trims blanks and drops empty items" {
   let fm = make_fm([("tags", " foo, , bar ,, baz  ")])
   let list = get_list(fm, "tags")
   @debug.debug_inspect(list.length(), content="3")
-  @debug.debug_inspect(list[0], content=(
-    #|"foo"
-  ))
-  @debug.debug_inspect(list[1], content=(
-    #|"bar"
-  ))
-  @debug.debug_inspect(list[2], content=(
-    #|"baz"
-  ))
+  @debug.debug_inspect(
+    list[0],
+    content=(
+      #|"foo"
+    ),
+  )
+  @debug.debug_inspect(
+    list[1],
+    content=(
+      #|"bar"
+    ),
+  )
+  @debug.debug_inspect(
+    list[2],
+    content=(
+      #|"baz"
+    ),
+  )
 }
 
 ///|
@@ -118,13 +143,22 @@ test "keys: multiple" {
   let fm = make_fm([("a", "1"), ("b", "2"), ("c", "3")])
   let k = keys(fm)
   @debug.debug_inspect(k.length(), content="3")
-  @debug.debug_inspect(k[0], content=(
-    #|"a"
-  ))
-  @debug.debug_inspect(k[1], content=(
-    #|"b"
-  ))
-  @debug.debug_inspect(k[2], content=(
-    #|"c"
-  ))
+  @debug.debug_inspect(
+    k[0],
+    content=(
+      #|"a"
+    ),
+  )
+  @debug.debug_inspect(
+    k[1],
+    content=(
+      #|"b"
+    ),
+  )
+  @debug.debug_inspect(
+    k[2],
+    content=(
+      #|"c"
+    ),
+  )
 }

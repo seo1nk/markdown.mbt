@@ -4,3 +4,7 @@ import {
   "moonbitlang/parser",
   "moonbitlang/parser/syntax",
 }
+
+options(
+  supported_targets: "js",
+)

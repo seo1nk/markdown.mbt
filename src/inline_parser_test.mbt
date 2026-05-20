@@ -4,9 +4,13 @@ test "parse inline text" {
   let inlines = parse_inlines("Hello World")
   @debug.debug_inspect(inlines.length(), content="1")
   match inlines[0] {
-    Inline::Text(content~, ..) => @debug.debug_inspect(content, content=(
-      #|"Hello World"
-    ))
+    Inline::Text(content~, ..) =>
+      @debug.debug_inspect(
+        content,
+        content=(
+          #|"Hello World"
+        ),
+      )
     _ => fail("Expected Text")
   }
 }
@@ -29,7 +33,8 @@ test "parse emphasis with underscore" {
   let inlines = parse_inlines("Hello _world_")
   @debug.debug_inspect(inlines.length(), content="2")
   match inlines[1] {
-    Inline::Emphasis(marker~, ..) => @debug.debug_inspect(marker, content="Underscore")
+    Inline::Emphasis(marker~, ..) =>
+      @debug.debug_inspect(marker, content="Underscore")
     _ => fail("Expected Emphasis")
   }
 }
@@ -52,7 +57,8 @@ test "parse strong with underscore" {
   let inlines = parse_inlines("Hello __world__")
   @debug.debug_inspect(inlines.length(), content="2")
   match inlines[1] {
-    Inline::Strong(marker~, ..) => @debug.debug_inspect(marker, content="Underscore")
+    Inline::Strong(marker~, ..) =>
+      @debug.debug_inspect(marker, content="Underscore")
     _ => fail("Expected Strong")
   }
 }
@@ -63,9 +69,12 @@ test "parse inline code" {
   @debug.debug_inspect(inlines.length(), content="3")
   match inlines[1] {
     Inline::Code(content~, backtick_count~, ..) => {
-      @debug.debug_inspect(content, content=(
-        #|"code"
-      ))
+      @debug.debug_inspect(
+        content,
+        content=(
+          #|"code"
+        ),
+      )
       @debug.debug_inspect(backtick_count, content="1")
     }
     _ => fail("Expected Code")
@@ -90,12 +99,18 @@ test "parse link" {
   @debug.debug_inspect(inlines.length(), content="2")
   match inlines[1] {
     Inline::Link(url~, title~, children~, ..) => {
-      @debug.debug_inspect(url, content=(
-        #|"https://example.com"
-      ))
-      @debug.debug_inspect(title, content=(
-        #|""
-      ))
+      @debug.debug_inspect(
+        url,
+        content=(
+          #|"https://example.com"
+        ),
+      )
+      @debug.debug_inspect(
+        title,
+        content=(
+          #|""
+        ),
+      )
       @debug.debug_inspect(children.length(), content="1")
     }
     _ => fail("Expected Link")
@@ -107,12 +122,18 @@ test "parse link with title" {
   let inlines = parse_inlines("[link](https://example.com \"Title\")")
   match inlines[0] {
     Inline::Link(url~, title~, ..) => {
-      @debug.debug_inspect(url, content=(
-        #|"https://example.com"
-      ))
-      @debug.debug_inspect(title, content=(
-        #|"Title"
-      ))
+      @debug.debug_inspect(
+        url,
+        content=(
+          #|"https://example.com"
+        ),
+      )
+      @debug.debug_inspect(
+        title,
+        content=(
+          #|"Title"
+        ),
+      )
     }
     _ => fail("Expected Link")
   }
@@ -123,9 +144,12 @@ test "parse reference link" {
   let inlines = parse_inlines("[text][ref]")
   match inlines[0] {
     Inline::RefLink(label~, children~, ..) => {
-      @debug.debug_inspect(label, content=(
-        #|"ref"
-      ))
+      @debug.debug_inspect(
+        label,
+        content=(
+          #|"ref"
+        ),
+      )
       @debug.debug_inspect(children.length(), content="1")
     }
     _ => fail("Expected RefLink")
@@ -137,15 +161,24 @@ test "parse image" {
   let inlines = parse_inlines("![alt text](image.png)")
   match inlines[0] {
     Inline::Image(alt~, url~, title~, ..) => {
-      @debug.debug_inspect(alt, content=(
-        #|"alt text"
-      ))
-      @debug.debug_inspect(url, content=(
-        #|"image.png"
-      ))
-      @debug.debug_inspect(title, content=(
-        #|""
-      ))
+      @debug.debug_inspect(
+        alt,
+        content=(
+          #|"alt text"
+        ),
+      )
+      @debug.debug_inspect(
+        url,
+        content=(
+          #|"image.png"
+        ),
+      )
+      @debug.debug_inspect(
+        title,
+        content=(
+          #|""
+        ),
+      )
     }
     _ => fail("Expected Image")
   }
@@ -156,15 +189,24 @@ test "parse image with title" {
   let inlines = parse_inlines("![alt](image.png \"Title\")")
   match inlines[0] {
     Inline::Image(alt~, url~, title~, ..) => {
-      @debug.debug_inspect(alt, content=(
-        #|"alt"
-      ))
-      @debug.debug_inspect(url, content=(
-        #|"image.png"
-      ))
-      @debug.debug_inspect(title, content=(
-        #|"Title"
-      ))
+      @debug.debug_inspect(
+        alt,
+        content=(
+          #|"alt"
+        ),
+      )
+      @debug.debug_inspect(
+        url,
+        content=(
+          #|"image.png"
+        ),
+      )
+      @debug.debug_inspect(
+        title,
+        content=(
+          #|"Title"
+        ),
+      )
     }
     _ => fail("Expected Image")
   }
@@ -175,12 +217,18 @@ test "parse reference image" {
   let inlines = parse_inlines("![alt][ref]")
   match inlines[0] {
     Inline::RefImage(alt~, label~, ..) => {
-      @debug.debug_inspect(alt, content=(
-        #|"alt"
-      ))
-      @debug.debug_inspect(label, content=(
-        #|"ref"
-      ))
+      @debug.debug_inspect(
+        alt,
+        content=(
+          #|"alt"
+        ),
+      )
+      @debug.debug_inspect(
+        label,
+        content=(
+          #|"ref"
+        ),
+      )
     }
     _ => fail("Expected RefImage")
   }
@@ -191,9 +239,12 @@ test "parse autolink URL" {
   let inlines = parse_inlines("<https://example.com>")
   match inlines[0] {
     Inline::Autolink(url~, is_email~, ..) => {
-      @debug.debug_inspect(url, content=(
-        #|"https://example.com"
-      ))
+      @debug.debug_inspect(
+        url,
+        content=(
+          #|"https://example.com"
+        ),
+      )
       @debug.debug_inspect(is_email, content="false")
     }
     _ => fail("Expected Autolink")
@@ -205,9 +256,12 @@ test "parse autolink email" {
   let inlines = parse_inlines("<user@example.com>")
   match inlines[0] {
     Inline::Autolink(url~, is_email~, ..) => {
-      @debug.debug_inspect(url, content=(
-        #|"user@example.com"
-      ))
+      @debug.debug_inspect(
+        url,
+        content=(
+          #|"user@example.com"
+        ),
+      )
       @debug.debug_inspect(is_email, content="true")
     }
     _ => fail("Expected Autolink")

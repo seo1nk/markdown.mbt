@@ -47,52 +47,68 @@ test "Scanner: emoji basic" {
 ///|
 test "Scanner: peek Japanese characters" {
   let s = Scanner::new("あいう")
-  @debug.debug_inspect(s.peek(), content=(
-    #|Some('あ')
-
-  ))
+  @debug.debug_inspect(
+    s.peek(),
+    content=(
+      #|Some('あ')
+    ),
+  )
   s.advance(1)
-  @debug.debug_inspect(s.peek(), content=(
-    #|Some('い')
-
-  ))
+  @debug.debug_inspect(
+    s.peek(),
+    content=(
+      #|Some('い')
+    ),
+  )
   s.advance(1)
-  @debug.debug_inspect(s.peek(), content=(
-    #|Some('う')
-
-  ))
+  @debug.debug_inspect(
+    s.peek(),
+    content=(
+      #|Some('う')
+    ),
+  )
 }
 
 ///|
 test "Scanner: peek Chinese characters" {
   let s = Scanner::new("中文字")
-  @debug.debug_inspect(s.peek(), content=(
-    #|Some('中')
-
-  ))
+  @debug.debug_inspect(
+    s.peek(),
+    content=(
+      #|Some('中')
+    ),
+  )
   s.advance(1)
-  @debug.debug_inspect(s.peek(), content=(
-    #|Some('文')
-
-  ))
+  @debug.debug_inspect(
+    s.peek(),
+    content=(
+      #|Some('文')
+    ),
+  )
   s.advance(1)
-  @debug.debug_inspect(s.peek(), content=(
-    #|Some('字')
-
-  ))
+  @debug.debug_inspect(
+    s.peek(),
+    content=(
+      #|Some('字')
+    ),
+  )
 }
 
 ///|
 test "Scanner: consume Japanese characters" {
   let s = Scanner::new("日本")
-  @debug.debug_inspect(s.consume(), content=(
-    #|Some('日')
-
-  ))
-  @debug.debug_inspect(s.consume(), content=(
-    #|Some('本')
-
-  ))
+  @debug.debug_inspect(
+    s.consume(),
+    content=(
+      #|Some('日')
+    ),
+  )
+  @debug.debug_inspect(
+    s.consume(),
+    content=(
+      #|Some('本')
+    ),
+  )
   @debug.debug_inspect(s.consume(), content="None")
 }
 
@@ -100,18 +116,24 @@ test "Scanner: consume Japanese characters" {
 test "Scanner: substring with Japanese" {
   let s = Scanner::new("Hello世界Goodbye")
   let sub = s.substring(5, 7)
-  @debug.debug_inspect(sub, content=(
-    #|"世界"
-  ))
+  @debug.debug_inspect(
+    sub,
+    content=(
+      #|"世界"
+    ),
+  )
 }
 
 ///|
 test "Scanner: read_line with Japanese" {
   let s = Scanner::new("日本語の行\n次の行")
   let line = s.read_line()
-  @debug.debug_inspect(line, content=(
-    #|"日本語の行"
-  ))
+  @debug.debug_inspect(
+    line,
+    content=(
+      #|"日本語の行"
+    ),
+  )
 }
 
 ///|
@@ -124,9 +146,12 @@ test "parse Japanese text in paragraph" {
       @debug.debug_inspect(children.length(), content="1")
       match children[0] {
         Inline::Text(content~, ..) =>
-          @debug.debug_inspect(content, content=(
-            #|"これは日本語のテストです"
-          ))
+          @debug.debug_inspect(
+            content,
+            content=(
+              #|"これは日本語のテストです"
+            ),
+          )
         _ => fail("Expected Text")
       }
     }
@@ -143,9 +168,12 @@ test "parse Chinese text in paragraph" {
     Block::Paragraph(children~, ..) =>
       match children[0] {
         Inline::Text(content~, ..) =>
-          @debug.debug_inspect(content, content=(
-            #|"这是中文测试"
-          ))
+          @debug.debug_inspect(
+            content,
+            content=(
+              #|"这是中文测试"
+            ),
+          )
         _ => fail("Expected Text")
       }
     _ => fail("Expected Paragraph")
@@ -159,9 +187,13 @@ test "parse emphasis with Japanese text" {
   match inlines[0] {
     Inline::Emphasis(children~, ..) =>
       match children[0] {
-        Inline::Text(content~, ..) => @debug.debug_inspect(content, content=(
-          #|"日本語"
-        ))
+        Inline::Text(content~, ..) =>
+          @debug.debug_inspect(
+            content,
+            content=(
+              #|"日本語"
+            ),
+          )
         _ => fail("Expected Text inside Emphasis")
       }
     _ => fail("Expected Emphasis")
@@ -175,9 +207,13 @@ test "parse strong with Chinese text" {
   match inlines[0] {
     Inline::Strong(children~, ..) =>
       match children[0] {
-        Inline::Text(content~, ..) => @debug.debug_inspect(content, content=(
-          #|"中文"
-        ))
+        Inline::Text(content~, ..) =>
+          @debug.debug_inspect(
+            content,
+            content=(
+              #|"中文"
+            ),
+          )
         _ => fail("Expected Text inside Strong")
       }
     _ => fail("Expected Strong")
@@ -192,9 +228,12 @@ test "parse heading with Japanese" {
       @debug.debug_inspect(level, content="1")
       match children[0] {
         Inline::Text(content~, ..) =>
-          @debug.debug_inspect(content, content=(
-            #|"日本語の見出し"
-          ))
+          @debug.debug_inspect(
+            content,
+            content=(
+              #|"日本語の見出し"
+            ),
+          )
         _ => fail("Expected Text")
       }
     }
@@ -206,9 +245,13 @@ test "parse heading with Japanese" {
 test "parse code span with Japanese" {
   let inlines = parse_inlines("`日本語コード`")
   match inlines[0] {
-    Inline::Code(content~, ..) => @debug.debug_inspect(content, content=(
-      #|"日本語コード"
-    ))
+    Inline::Code(content~, ..) =>
+      @debug.debug_inspect(
+        content,
+        content=(
+          #|"日本語コード"
+        ),
+      )
     _ => fail("Expected Code")
   }
 }
@@ -218,14 +261,20 @@ test "parse link with Japanese text" {
   let inlines = parse_inlines("[日本語リンク](https://example.com)")
   match inlines[0] {
     Inline::Link(children~, url~, ..) => {
-      @debug.debug_inspect(url, content=(
-        #|"https://example.com"
-      ))
+      @debug.debug_inspect(
+        url,
+        content=(
+          #|"https://example.com"
+        ),
+      )
       match children[0] {
         Inline::Text(content~, ..) =>
-          @debug.debug_inspect(content, content=(
-            #|"日本語リンク"
-          ))
+          @debug.debug_inspect(
+            content,
+            content=(
+              #|"日本語リンク"
+            ),
+          )
         _ => fail("Expected Text")
       }
     }
@@ -238,9 +287,12 @@ test "serialize preserves Japanese text" {
   let input = "これは日本語です\n"
   let result = parse(input)
   let output = serialize(result.document)
-  @debug.debug_inspect(output, content=(
-    #|"これは日本語です\n"
-  ))
+  @debug.debug_inspect(
+    output,
+    content=(
+      #|"これは日本語です\n"
+    ),
+  )
 }
 
 ///|
@@ -248,9 +300,12 @@ test "serialize preserves Chinese text" {
   let input = "这是中文\n"
   let result = parse(input)
   let output = serialize(result.document)
-  @debug.debug_inspect(output, content=(
-    #|"这是中文\n"
-  ))
+  @debug.debug_inspect(
+    output,
+    content=(
+      #|"这是中文\n"
+    ),
+  )
 }
 
 ///|
@@ -298,9 +353,12 @@ test "inline span positions with mixed ASCII and Japanese" {
   @debug.debug_inspect(inlines.length(), content="2")
   match inlines[0] {
     Inline::Text(span~, content~) => {
-      @debug.debug_inspect(content, content=(
-        #|"Hello"
-      ))
+      @debug.debug_inspect(
+        content,
+        content=(
+          #|"Hello"
+        ),
+      )
       @debug.debug_inspect(span.from, content="0")
       @debug.debug_inspect(span.to, content="5")
     }
@@ -329,9 +387,12 @@ test "code span span positions with Japanese" {
   }
   match inlines[1] {
     Inline::Code(span~, content~, ..) => {
-      @debug.debug_inspect(content, content=(
-        #|"日本"
-      ))
+      @debug.debug_inspect(
+        content,
+        content=(
+          #|"日本"
+        ),
+      )
       @debug.debug_inspect(span.from, content="3")
       @debug.debug_inspect(span.to, content="7") // `日本` = 4 characters
     }
@@ -352,9 +413,12 @@ test "substring extraction with span - Japanese" {
   let s = Scanner::new(source)
   // Extract "強調" (positions 4-6 inside *強調*)
   let extracted = s.substring(4, 6)
-  @debug.debug_inspect(extracted, content=(
-    #|"強調"
-  ))
+  @debug.debug_inspect(
+    extracted,
+    content=(
+      #|"強調"
+    ),
+  )
 }
 
 ///|
@@ -364,9 +428,12 @@ test "emoji in emphasis" {
     Inline::Emphasis(children~, ..) =>
       match children[0] {
         Inline::Text(content~, ..) =>
-          @debug.debug_inspect(content, content=(
-            #|"🎉テスト🎊"
-          ))
+          @debug.debug_inspect(
+            content,
+            content=(
+              #|"🎉テスト🎊"
+            ),
+          )
         _ => fail("Expected Text")
       }
     _ => fail("Expected Emphasis")
@@ -378,13 +445,20 @@ test "link with Japanese URL (encoded)" {
   let inlines = parse_inlines("[リンク](https://example.com/日本語)")
   match inlines[0] {
     Inline::Link(url~, children~, ..) => {
-      @debug.debug_inspect(url, content=(
-        #|"https://example.com/日本語"
-      ))
+      @debug.debug_inspect(
+        url,
+        content=(
+          #|"https://example.com/日本語"
+        ),
+      )
       match children[0] {
-        Inline::Text(content~, ..) => @debug.debug_inspect(content, content=(
-          #|"リンク"
-        ))
+        Inline::Text(content~, ..) =>
+          @debug.debug_inspect(
+            content,
+            content=(
+              #|"リンク"
+            ),
+          )
         _ => fail("Expected Text")
       }
     }
@@ -414,9 +488,13 @@ test "heading followed by Japanese paragraph" {
   match blocks[0] {
     Block::Heading(children~, ..) =>
       match children[0] {
-        Inline::Text(content~, ..) => @debug.debug_inspect(content, content=(
-          #|"見出し"
-        ))
+        Inline::Text(content~, ..) =>
+          @debug.debug_inspect(
+            content,
+            content=(
+              #|"見出し"
+            ),
+          )
         _ => fail("Expected Text")
       }
     _ => fail("Expected Heading")
@@ -432,9 +510,12 @@ test "blockquote with Japanese" {
         Block::Paragraph(children=para_children, ..) =>
           match para_children[0] {
             Inline::Text(content~, ..) =>
-              @debug.debug_inspect(content, content=(
-                #|"引用テキスト"
-              ))
+              @debug.debug_inspect(
+                content,
+                content=(
+                  #|"引用テキスト"
+                ),
+              )
             _ => fail("Expected Text")
           }
         _ => fail("Expected Paragraph")
@@ -448,12 +529,18 @@ test "fenced code block with Japanese info string" {
   let result = parse("```日本語\ncode\n```")
   match result.document.children[0] {
     Block::FencedCode(info~, code~, ..) => {
-      @debug.debug_inspect(info, content=(
-        #|"日本語"
-      ))
-      @debug.debug_inspect(code, content=(
-        #|"code\n"
-      ))
+      @debug.debug_inspect(
+        info,
+        content=(
+          #|"日本語"
+        ),
+      )
+      @debug.debug_inspect(
+        code,
+        content=(
+          #|"code\n"
+        ),
+      )
     }
     _ => fail("Expected FencedCode")
   }
@@ -483,15 +570,24 @@ test "String.to_array with Japanese" {
   let arr = s.to_array()
   @debug.debug_inspect(arr.length(), content="3")
   // MoonBit Char display format doesn't use quotes
-  @debug.debug_inspect(arr[0], content=(
-    #|'あ'
-  ))
-  @debug.debug_inspect(arr[1], content=(
-    #|'い'
-  ))
-  @debug.debug_inspect(arr[2], content=(
-    #|'う'
-  ))
+  @debug.debug_inspect(
+    arr[0],
+    content=(
+      #|'あ'
+    ),
+  )
+  @debug.debug_inspect(
+    arr[1],
+    content=(
+      #|'い'
+    ),
+  )
+  @debug.debug_inspect(
+    arr[2],
+    content=(
+      #|'う'
+    ),
+  )
 }
 
 ///|
@@ -521,18 +617,24 @@ test "String.code_unit_at with Japanese" {
 ///|
 test "String.get_char with Japanese" {
   let s = "日本語"
-  @debug.debug_inspect(s.get_char(0), content=(
-    #|Some('日')
-
-  ))
-  @debug.debug_inspect(s.get_char(1), content=(
-    #|Some('本')
-
-  ))
-  @debug.debug_inspect(s.get_char(2), content=(
-    #|Some('語')
-
-  ))
+  @debug.debug_inspect(
+    s.get_char(0),
+    content=(
+      #|Some('日')
+    ),
+  )
+  @debug.debug_inspect(
+    s.get_char(1),
+    content=(
+      #|Some('本')
+    ),
+  )
+  @debug.debug_inspect(
+    s.get_char(2),
+    content=(
+      #|Some('語')
+    ),
+  )
   @debug.debug_inspect(s.get_char(3), content="None")
 }
 
@@ -540,20 +642,25 @@ test "String.get_char with Japanese" {
 test "String.view with Japanese" {
   let s = "Hello世界Goodbye"
   let v = s.view(start_offset=5, end_offset=7)
-  @debug.debug_inspect(v.to_owned(), content=(
-    #|"世界"
-  ))
+  @debug.debug_inspect(
+    v.to_owned(),
+    content=(
+      #|"世界"
+    ),
+  )
 }
 
 ///|
 test "String.unsafe_substring with Japanese" {
   let s = "テスト文字列"
   let sub = s.unsafe_substring(start=2, end=4)
-  @debug.debug_inspect(sub, content=(
-    #|"ト文"
-  ))
+  @debug.debug_inspect(
+    sub,
+    content=(
+      #|"ト文"
+    ),
+  )
 }
-
 
 // =============================================================================
 // Critical: length() vs to_array() vs substring behavior
@@ -601,15 +708,21 @@ test "CRITICAL: substring with emoji - index mismatch" {
   // But substring uses UTF-16 indices!
   // This WILL cause issues if we mix Scanner positions with substring
   let sub_correct = s.unsafe_substring(start=0, end=1)
-  @debug.debug_inspect(sub_correct, content=(
-    #|"A"
-  ))
+  @debug.debug_inspect(
+    sub_correct,
+    content=(
+      #|"A"
+    ),
+  )
 
   // To get 😀, we need UTF-16 indices 1-3, not character indices 1-2
   let sub_emoji = s.unsafe_substring(start=1, end=3)
-  @debug.debug_inspect(sub_emoji, content=(
-    #|"😀"
-  ))
+  @debug.debug_inspect(
+    sub_emoji,
+    content=(
+      #|"😀"
+    ),
+  )
 }
 
 ///|
@@ -620,9 +733,12 @@ test "CRITICAL: Scanner.substring with emoji - potential bug" {
 
   // This should get "A" (position 0 to 1 in code points)
   let sub_a = s.substring(0, 1)
-  @debug.debug_inspect(sub_a, content=(
-    #|"A"
-  ))
+  @debug.debug_inspect(
+    sub_a,
+    content=(
+      #|"A"
+    ),
+  )
 
   // This should get "😀" (position 1 to 2 in code points)
   // BUT unsafe_substring uses UTF-16 indices!
@@ -638,16 +754,22 @@ test "CRITICAL: view() with emoji - index semantics" {
   let s = "A😀B"
   // view() uses offsets - let's check if they're code point or UTF-16 based
   let v1 = s.view(start_offset=0, end_offset=1)
-  @debug.debug_inspect(v1.to_owned(), content=(
-    #|"A"
-  ))
+  @debug.debug_inspect(
+    v1.to_owned(),
+    content=(
+      #|"A"
+    ),
+  )
 
   // view(1, 3) should give 😀 if UTF-16 based
   // view(1, 2) should give 😀 if code point based
   let v2 = s.view(start_offset=1, end_offset=3) // Try UTF-16 semantics
-  @debug.debug_inspect(v2.to_owned(), content=(
-    #|"😀"
-  ))
+  @debug.debug_inspect(
+    v2.to_owned(),
+    content=(
+      #|"😀"
+    ),
+  )
 }
 
 ///|
@@ -684,32 +806,53 @@ test "Workaround: parse Japanese without emoji works" {
 ///|
 test "Scanner.substring detailed - ASCII only" {
   let s = Scanner::new("ABCDE")
-  @debug.debug_inspect(s.substring(0, 1), content=(
-    #|"A"
-  ))
-  @debug.debug_inspect(s.substring(1, 2), content=(
-    #|"B"
-  ))
-  @debug.debug_inspect(s.substring(0, 5), content=(
-    #|"ABCDE"
-  ))
+  @debug.debug_inspect(
+    s.substring(0, 1),
+    content=(
+      #|"A"
+    ),
+  )
+  @debug.debug_inspect(
+    s.substring(1, 2),
+    content=(
+      #|"B"
+    ),
+  )
+  @debug.debug_inspect(
+    s.substring(0, 5),
+    content=(
+      #|"ABCDE"
+    ),
+  )
 }
 
 ///|
 test "Scanner.substring detailed - Japanese BMP" {
   let s = Scanner::new("あいうえお")
-  @debug.debug_inspect(s.substring(0, 1), content=(
-    #|"あ"
-  ))
-  @debug.debug_inspect(s.substring(1, 2), content=(
-    #|"い"
-  ))
-  @debug.debug_inspect(s.substring(2, 3), content=(
-    #|"う"
-  ))
-  @debug.debug_inspect(s.substring(0, 5), content=(
-    #|"あいうえお"
-  ))
+  @debug.debug_inspect(
+    s.substring(0, 1),
+    content=(
+      #|"あ"
+    ),
+  )
+  @debug.debug_inspect(
+    s.substring(1, 2),
+    content=(
+      #|"い"
+    ),
+  )
+  @debug.debug_inspect(
+    s.substring(2, 3),
+    content=(
+      #|"う"
+    ),
+  )
+  @debug.debug_inspect(
+    s.substring(0, 5),
+    content=(
+      #|"あいうえお"
+    ),
+  )
 }
 
 ///|
@@ -726,21 +869,30 @@ test "Scanner.substring detailed - emoji" {
 test "Scanner.substring - mixed ASCII and emoji - FIXED" {
   let s = Scanner::new("A😀B")
   let a = s.substring(0, 1)
-  @debug.debug_inspect(a, content=(
-    #|"A"
-  ))
+  @debug.debug_inspect(
+    a,
+    content=(
+      #|"A"
+    ),
+  )
 
   // After fix: Scanner correctly converts code point index to UTF-16 index
   let emoji = s.substring(1, 2)
   // Now we get the full emoji (2 UTF-16 code units)
-  @debug.debug_inspect(emoji, content=(
-    #|"😀"
-  ))
+  @debug.debug_inspect(
+    emoji,
+    content=(
+      #|"😀"
+    ),
+  )
   @debug.debug_inspect(emoji.length(), content="2") // Correct: full emoji
   let b = s.substring(2, 3)
-  @debug.debug_inspect(b, content=(
-    #|"B"
-  )) // Correct: 'B' at code point index 2
+  @debug.debug_inspect(
+    b,
+    content=(
+      #|"B"
+    ),
+  ) // Correct: 'B' at code point index 2
 }
 
 // =============================================================================
@@ -856,19 +1008,23 @@ test "INVESTIGATE: Scanner.chars array content with emoji" {
   @debug.debug_inspect(s.len, content="3")
 
   // Check peek at each position
-  @debug.debug_inspect(s.peek(), content=(
-    #|Some('A')
-
-  ))
+  @debug.debug_inspect(
+    s.peek(),
+    content=(
+      #|Some('A')
+    ),
+  )
   s.advance(1)
   // Position 1 is the FULL emoji (code point)
   let emoji_char = s.peek()
   @debug.debug_inspect(emoji_char is None, content="false")
   s.advance(1)
-  @debug.debug_inspect(s.peek(), content=(
-    #|Some('B')
-
-  ))
+  @debug.debug_inspect(
+    s.peek(),
+    content=(
+      #|Some('B')
+    ),
+  )
 }
 
 ///|
@@ -920,15 +1076,24 @@ test "FIXED: Scanner position correctly maps to UTF-16 index" {
 
   // After fix: Scanner correctly converts code point index to UTF-16 index
   let a = scanner.substring(1, 2)
-  @debug.debug_inspect(a, content=(
-    #|"A"
-  )) // Now works correctly!
+  @debug.debug_inspect(
+    a,
+    content=(
+      #|"A"
+    ),
+  ) // Now works correctly!
   let b = scanner.substring(2, 3)
-  @debug.debug_inspect(b, content=(
-    #|"B"
-  )) // Also works!
+  @debug.debug_inspect(
+    b,
+    content=(
+      #|"B"
+    ),
+  ) // Also works!
   let emoji = scanner.substring(0, 1)
-  @debug.debug_inspect(emoji, content=(
-    #|"😀"
-  )) // Emoji extraction works!
+  @debug.debug_inspect(
+    emoji,
+    content=(
+      #|"😀"
+    ),
+  ) // Emoji extraction works!
 }

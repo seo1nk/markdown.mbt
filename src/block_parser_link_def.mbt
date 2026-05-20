@@ -1,6 +1,9 @@
 ///| Link reference definitions and GFM footnote definitions.
+
 ///|
+
 ///| Split out from block_parser.mbt to keep that file focused on the block
+
 ///| dispatcher and paragraph parsing.
 
 ///|

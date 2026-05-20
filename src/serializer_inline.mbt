@@ -1,7 +1,11 @@
 ///| Inline serialization (text, emphasis, links, images, code spans, ...).
+
 ///|
+
 ///| Split from serializer.mbt to keep that file focused on block-level
+
 ///| serialization. Table-cell variants and wikilink escaping live here
+
 ///| because they are part of the same inline-rendering surface.
 
 ///|

@@ -1,7 +1,11 @@
 ///| Bare-URL autolink helpers used by the HTML renderer.
+
 ///|
+
 ///| Pure utilities — given a `String` and a position, classify the surrounding
+
 ///| characters and find the boundaries of an `http(s)://` URL. Extracted from
+
 ///| renderer.mbt to keep the renderer itself focused on AST traversal.
 
 ///|

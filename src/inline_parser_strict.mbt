@@ -1,4 +1,5 @@
 ///| Delimiter Stack Algorithm for strict CommonMark emphasis handling
+
 ///| (split from inline_parser.mbt).
 
 ///|

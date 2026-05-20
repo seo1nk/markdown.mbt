@@ -91,7 +91,6 @@ fn parse_heading_content(line : String) -> (String, Int) {
   }
 }
 
-
 ///|
 /// Try to parse setext heading
 fn BlockParser::try_parse_setext_heading(

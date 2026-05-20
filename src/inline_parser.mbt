@@ -347,7 +347,6 @@ fn InlineParser::try_parse_strikethrough(
   None
 }
 
-
 ///|
 /// Try to parse an inline HTML comment
 fn InlineParser::try_parse_html_comment(
@@ -457,4 +456,3 @@ fn is_all_spaces(s : String) -> Bool {
   }
   true
 }
-

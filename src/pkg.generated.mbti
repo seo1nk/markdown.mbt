@@ -18,25 +18,17 @@ pub fn is_letter(Char) -> Bool
 
 pub fn is_punctuation(Char) -> Bool
 
+pub fn is_unicode_punctuation(Char) -> Bool
+
+pub fn is_unicode_whitespace(Char) -> Bool
+
 pub fn is_whitespace(Char) -> Bool
-
-pub fn md_free(Int) -> Unit
-
-pub fn md_parse(String) -> Int
 
 pub fn md_parse_and_render(String, strict? : Bool, wikilinks? : Bool) -> String
 
-pub fn md_parse_incremental(Int, String, Int, Int, Int) -> Int
-
-pub fn md_parse_with_wikilinks(String) -> Int
-
-pub fn md_render_to_html(Int) -> String
-
-pub fn md_render_to_string(Int) -> String
-
 pub fn md_to_html(String, wikilinks? : Bool, autolink? : Bool) -> String
 
-pub fn md_to_html_autolink(String, wikilinks? : Bool) -> String
+pub fn md_to_html_literal(String, wikilinks? : Bool, positions? : Bool, image_preview? : Bool) -> String
 
 pub fn md_to_html_strict(String, wikilinks? : Bool, autolink? : Bool) -> String
 
@@ -48,9 +40,9 @@ pub fn parse_incremental(Document, String, String, EditInfo, wikilinks? : Bool) 
 
 pub fn parse_inlines(String, strict? : Bool, wikilinks? : Bool) -> Array[Inline]
 
-pub fn parse_inlines_multipass(String) -> Array[Inline]
-
 pub fn render_html(Document, autolink? : Bool) -> String
+
+pub fn render_html_literal(Document, positions? : Bool, image_preview? : Bool) -> String
 
 pub fn serialize(Document) -> String
 
@@ -59,9 +51,6 @@ pub fn serialize_definitions(Array[LinkDefinition]) -> String
 // Errors
 
 // Types and methods
-pub(all) struct AgentId(Int) derive(Eq, @debug.Debug)
-pub impl Show for AgentId
-
 pub(all) enum Block {
   ThematicBreak(marker~ : Char, count~ : Int, span~ : Span, leading_trivia~ : Trivia, trailing_trivia~ : Trivia)
   Heading(level~ : Int, style~ : HeadingStyle, children~ : Array[Inline], closing_hashes~ : Int, span~ : Span, leading_trivia~ : Trivia, trailing_trivia~ : Trivia)
@@ -84,30 +73,11 @@ pub(all) enum BulletMarker {
 } derive(Eq, @debug.Debug)
 pub impl Show for BulletMarker
 
-pub struct CodeBlockInfo {
+pub(all) struct CodeBlockInfo {
   lang : String
   filename : String
   meta : String
 }
-
-pub(all) struct CrdtDocument {
-  runs : Array[TextRun]
-  gen : IdGenerator
-}
-pub fn CrdtDocument::active_count(Self) -> Int
-pub fn CrdtDocument::delete(Self, Int) -> Unit
-pub fn CrdtDocument::get_text(Self) -> String
-pub fn CrdtDocument::insert(Self, String) -> LogicalId
-pub fn CrdtDocument::new(AgentId) -> Self
-pub fn CrdtDocument::total_count(Self) -> Int
-
-pub(all) struct CrdtSpan {
-  start_id : LogicalId
-  end_id : LogicalId
-  cached_from : Int
-  cached_to : Int
-}
-pub fn CrdtSpan::new(LogicalId, LogicalId, Int, Int) -> Self
 
 pub(all) struct Document {
   frontmatter : Frontmatter?
@@ -154,13 +124,6 @@ pub(all) enum HeadingStyle {
 } derive(Eq, @debug.Debug)
 pub impl Show for HeadingStyle
 
-pub(all) struct IdGenerator {
-  agent : AgentId
-  mut next_seq : Int
-}
-pub fn IdGenerator::new(AgentId) -> Self
-pub fn IdGenerator::next(Self) -> LogicalId
-
 pub(all) struct IncrementalResult {
   document : Document
   reused_before : Int
@@ -200,15 +163,6 @@ pub(all) struct ListItem {
   content_offset : Int
   span : Span
 }
-
-pub(all) struct LogicalId {
-  agent : AgentId
-  seq : Int
-} derive(Eq, @debug.Debug)
-pub fn LogicalId::compare(Self, Self) -> Int
-pub fn LogicalId::le(Self, Self) -> Bool
-pub fn LogicalId::lt(Self, Self) -> Bool
-pub impl Show for LogicalId
 
 pub(all) enum OrderedDelimiter {
   Dot
@@ -273,12 +227,6 @@ pub impl Show for TableAlign
 pub(all) struct TableCell {
   children : Array[Inline]
   span : Span
-}
-
-pub(all) struct TextRun {
-  id : LogicalId
-  content : String
-  deleted : Bool
 }
 
 pub(all) struct Trivia {

@@ -1,9 +1,15 @@
 ///| Literal (source-preserving) renderer benchmarks.
+
 ///|
+
 ///| The literal renderer walks the same AST as the regular `render_html`
+
 ///| but emits one or two extra `<span>`s per node and (when enabled)
+
 ///| `data-src-*` attributes / `<img>` slots. These benches measure how
+
 ///| much of the renderer's runtime that extra work costs, in absolute
+
 ///| terms and relative to `render_html` and `serialize`.
 
 // Reuse the document generator from bench.mbt — the same shape of

@@ -8,9 +8,13 @@ test "footnote reference parsing" {
       // "Here is a footnote reference", FootnoteReference, "."
       @debug.debug_inspect(children.length(), content="3")
       match children[1] {
-        FootnoteReference(label~, ..) => @debug.debug_inspect(label, content=(
-          #|"1"
-        ))
+        FootnoteReference(label~, ..) =>
+          @debug.debug_inspect(
+            label,
+            content=(
+              #|"1"
+            ),
+          )
         _ => fail("Expected FootnoteReference")
       }
     }
@@ -25,9 +29,12 @@ test "footnote definition parsing" {
   @debug.debug_inspect(result.document.children.length(), content="1")
   match result.document.children[0] {
     FootnoteDefinition(label~, children~, ..) => {
-      @debug.debug_inspect(label, content=(
-        #|"1"
-      ))
+      @debug.debug_inspect(
+        label,
+        content=(
+          #|"1"
+        ),
+      )
       @debug.debug_inspect(children.length(), content="1")
     }
     _ => fail("Expected FootnoteDefinition")

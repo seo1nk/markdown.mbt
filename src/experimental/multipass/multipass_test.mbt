@@ -12,7 +12,8 @@ test "parse_inlines_multipass with Japanese emphasis" {
   match inlines[0] {
     @markdown.Inline::Emphasis(children~, ..) =>
       match children[0] {
-        @markdown.Inline::Text(content~, ..) => inspect(content, content="日本語")
+        @markdown.Inline::Text(content~, ..) =>
+          inspect(content, content="日本語")
         _ => fail("Expected Text inside Emphasis")
       }
     _ => fail("Expected Emphasis")
@@ -37,7 +38,8 @@ test "parse_inlines_multipass mixed ASCII and Japanese" {
   match inlines[1] {
     @markdown.Inline::Emphasis(children~, ..) =>
       match children[0] {
-        @markdown.Inline::Text(content~, ..) => inspect(content, content="世界")
+        @markdown.Inline::Text(content~, ..) =>
+          inspect(content, content="世界")
         _ => fail("Expected Text")
       }
     _ => fail("Expected Emphasis")

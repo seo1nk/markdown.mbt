@@ -36,6 +36,8 @@ pub fn md_to_ast_json_with_wikilinks(String) -> String
 
 pub fn md_to_html(String) -> String
 
+pub fn md_to_html_literal(String, Int) -> String
+
 pub fn md_to_html_with_autolink(String) -> String
 
 pub fn md_to_html_with_wikilinks(String) -> String

@@ -1,3 +1,7 @@
 import {
   "mizchi/markdown",
 }
+
+options(
+  supported_targets: "js",
+)

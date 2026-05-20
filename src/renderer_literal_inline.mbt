@@ -1,10 +1,14 @@
 ///| Inline rendering for the literal (source-preserving) renderer.
-///|
-///| Split from renderer_literal.mbt to keep that file focused on the
-///| document / block-level dispatch. Helpers (`LiteralOpts`,
-///| `write_marker`, `write_image_preview_slot`, `repeat_char`,
-///| `escape_html` …) live alongside in the same package.
 
+///|
+
+///| Split from renderer_literal.mbt to keep that file focused on the
+
+///| document / block-level dispatch. Helpers (`LiteralOpts`,
+
+///| `write_marker`, `write_image_preview_slot`, `repeat_char`,
+
+///| `escape_html` …) live alongside in the same package.
 
 ///|
 fn render_inlines_literal(

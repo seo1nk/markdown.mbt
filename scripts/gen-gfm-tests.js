@@ -174,7 +174,7 @@ async function main() {
 
   // Generate moon.pkg.json
   const pkgJson = {
-    import: ['mizchi/markdown'],
+    supported_targets: 'js',
     'test-import': ['mizchi/markdown'],
   };
   fs.writeFileSync(
@@ -223,7 +223,7 @@ pub fn assert_gfm_compat(input : String, example : Int) -> Unit {
   }
 }
 `;
-  fs.writeFileSync(path.join(OUTPUT_DIR, 'helper.mbt'), helperContent);
+  fs.writeFileSync(path.join(OUTPUT_DIR, 'helper_test.mbt'), helperContent);
 
   // Generate test files per section
   let totalTests = 0;

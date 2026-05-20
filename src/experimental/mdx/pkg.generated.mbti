@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/markdown/mdx"
+package "mizchi/markdown/experimental/mdx"
 
 import {
   "mizchi/markdown",

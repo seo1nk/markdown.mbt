@@ -229,6 +229,7 @@ async function main() {
 
   // Generate moon.pkg.json
   const pkgJson = {
+    supported_targets: 'js',
     import: ['mizchi/markdown'],
   };
   fs.writeFileSync(

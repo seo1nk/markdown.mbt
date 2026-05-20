@@ -1,9 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "mizchi/markdown/notebook"
+package "mizchi/markdown/experimental/notebook"
 
 import {
   "mizchi/markdown",
-  "mizchi/markdown/info_string",
   "moonbitlang/core/debug",
 }
 
@@ -44,7 +43,7 @@ pub fn notebook_from_document(String, @markdown.Document) -> Notebook
 
 pub fn notebook_from_markdown(String, String) -> Notebook
 
-pub fn parse_code_block_attrs(String) -> (@info_string.CodeBlockInfo, CodeBlockAttrs)
+pub fn parse_code_block_attrs(String) -> (@markdown.CodeBlockInfo, CodeBlockAttrs)
 
 pub fn parse_inline_directive(String) -> InlineDirective?
 

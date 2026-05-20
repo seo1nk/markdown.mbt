@@ -1,5 +1,6 @@
 ///|
 /// Tests for the source-preserving (literal) HTML renderer.
+
 ///|
 /// The key invariant: stripping HTML tags + decoding the basic character
 /// references (`&amp; &lt; &gt; &quot;`) from `render_html_literal(doc)`
@@ -36,8 +37,7 @@ fn strip_html(html : String) -> String {
         // Decode &amp; &lt; &gt; &quot; &#39;
         let starts_with = fn(prefix : String) -> Bool {
           let n = prefix.length()
-          i + n <= len &&
-          html.unsafe_substring(start=i, end=i + n) == prefix
+          i + n <= len && html.unsafe_substring(start=i, end=i + n) == prefix
         }
         if starts_with("&amp;") {
           buf.write_char('&')
@@ -86,65 +86,78 @@ fn assert_overlay_invariant(src : String) -> Unit raise {
 ///|
 test "literal: paragraph plain text" {
   let html = md_to_html_literal("hello world\n")
-  @debug.debug_inspect(html, content=(
-    #|"<p>hello world</p>\n"
-
-  ))
+  @debug.debug_inspect(
+    html,
+    content=(
+      #|"<p>hello world</p>\n"
+    ),
+  )
 }
 
 ///|
 test "literal: heading atx" {
   let html = md_to_html_literal("## Intro\n")
-  @debug.debug_inspect(html, content=(
-    #|"<h2><span class=\"md-marker\" aria-hidden=\"true\">## </span>Intro</h2>\n"
-
-  ))
+  @debug.debug_inspect(
+    html,
+    content=(
+      #|"<h2><span class=\"md-marker\" aria-hidden=\"true\">## </span>Intro</h2>\n"
+    ),
+  )
 }
 
 ///|
 test "literal: emphasis and strong" {
   let html = md_to_html_literal("*em* and **strong**\n")
-  @debug.debug_inspect(html, content=(
-    #|"<p><em><span class=\"md-marker\" aria-hidden=\"true\">*</span>em<span class=\"md-marker\" aria-hidden=\"true\">*</span></em> and <strong><span class=\"md-marker\" aria-hidden=\"true\">**</span>strong<span class=\"md-marker\" aria-hidden=\"true\">**</span></strong></p>\n"
-
-  ))
+  @debug.debug_inspect(
+    html,
+    content=(
+      #|"<p><em><span class=\"md-marker\" aria-hidden=\"true\">*</span>em<span class=\"md-marker\" aria-hidden=\"true\">*</span></em> and <strong><span class=\"md-marker\" aria-hidden=\"true\">**</span>strong<span class=\"md-marker\" aria-hidden=\"true\">**</span></strong></p>\n"
+    ),
+  )
 }
 
 ///|
 test "literal: inline code" {
   let html = md_to_html_literal("hello `code` world\n")
-  @debug.debug_inspect(html, content=(
-    #|"<p>hello <code><span class=\"md-marker\" aria-hidden=\"true\">`</span>code<span class=\"md-marker\" aria-hidden=\"true\">`</span></code> world</p>\n"
-
-  ))
+  @debug.debug_inspect(
+    html,
+    content=(
+      #|"<p>hello <code><span class=\"md-marker\" aria-hidden=\"true\">`</span>code<span class=\"md-marker\" aria-hidden=\"true\">`</span></code> world</p>\n"
+    ),
+  )
 }
 
 ///|
 test "literal: bullet list" {
   let html = md_to_html_literal("- one\n- two\n")
-  @debug.debug_inspect(html, content=(
-    #|"<ul><li><span class=\"md-marker\" aria-hidden=\"true\">* </span>one\n</li><li><span class=\"md-marker\" aria-hidden=\"true\">* </span>two\n</li></ul>"
-
-
-  ))
+  @debug.debug_inspect(
+    html,
+    content=(
+      #|"<ul><li><span class=\"md-marker\" aria-hidden=\"true\">* </span>one\n</li><li><span class=\"md-marker\" aria-hidden=\"true\">* </span>two\n</li></ul>"
+    ),
+  )
 }
 
 ///|
 test "literal: link" {
   let html = md_to_html_literal("see [docs](https://example.com)\n")
-  @debug.debug_inspect(html, content=(
-    #|"<p>see <a href=\"https://example.com\"><span class=\"md-marker\" aria-hidden=\"true\">[</span>docs<span class=\"md-marker\" aria-hidden=\"true\">](https://example.com)</span></a></p>\n"
-
-  ))
+  @debug.debug_inspect(
+    html,
+    content=(
+      #|"<p>see <a href=\"https://example.com\"><span class=\"md-marker\" aria-hidden=\"true\">[</span>docs<span class=\"md-marker\" aria-hidden=\"true\">](https://example.com)</span></a></p>\n"
+    ),
+  )
 }
 
 ///|
 test "literal: autolink" {
   let html = md_to_html_literal("<https://example.com>\n")
-  @debug.debug_inspect(html, content=(
-    #|"<p><a href=\"https://example.com\"><span class=\"md-marker\" aria-hidden=\"true\">&lt;</span>https://example.com<span class=\"md-marker\" aria-hidden=\"true\">&gt;</span></a></p>\n"
-
-  ))
+  @debug.debug_inspect(
+    html,
+    content=(
+      #|"<p><a href=\"https://example.com\"><span class=\"md-marker\" aria-hidden=\"true\">&lt;</span>https://example.com<span class=\"md-marker\" aria-hidden=\"true\">&gt;</span></a></p>\n"
+    ),
+  )
 }
 
 // =============================================================================
@@ -442,16 +455,20 @@ fn assert_block_positions(src : String) -> Unit raise {
         if i + 4 <= len && html.unsafe_substring(start=i, end=i + 4) == "&lt;" {
           visible_offset += 1
           i += 4
-        } else if i + 4 <= len && html.unsafe_substring(start=i, end=i + 4) == "&gt;" {
+        } else if i + 4 <= len &&
+          html.unsafe_substring(start=i, end=i + 4) == "&gt;" {
           visible_offset += 1
           i += 4
-        } else if i + 5 <= len && html.unsafe_substring(start=i, end=i + 5) == "&amp;" {
+        } else if i + 5 <= len &&
+          html.unsafe_substring(start=i, end=i + 5) == "&amp;" {
           visible_offset += 1
           i += 5
-        } else if i + 6 <= len && html.unsafe_substring(start=i, end=i + 6) == "&quot;" {
+        } else if i + 6 <= len &&
+          html.unsafe_substring(start=i, end=i + 6) == "&quot;" {
           visible_offset += 1
           i += 6
-        } else if i + 5 <= len && html.unsafe_substring(start=i, end=i + 5) == "&#39;" {
+        } else if i + 5 <= len &&
+          html.unsafe_substring(start=i, end=i + 5) == "&#39;" {
           visible_offset += 1
           i += 5
         } else {
@@ -494,7 +511,10 @@ test "positions: blockquote with nested heading" {
 test "image preview: opt-in emits an <img> alongside source chars" {
   let html = md_to_html_literal("![cat](/img/cat.png)\n", image_preview=true)
   // The wrapper span contains both the <img> preview and the source chars.
-  @debug.debug_inspect(html.contains("<img class=\"md-image-preview\""), content="true")
+  @debug.debug_inspect(
+    html.contains("<img class=\"md-image-preview\""),
+    content="true",
+  )
   @debug.debug_inspect(html.contains("src=\"/img/cat.png\""), content="true")
   @debug.debug_inspect(html.contains("alt=\"cat\""), content="true")
   // The source characters `![cat](/img/cat.png)` are still in the output.
@@ -507,7 +527,10 @@ test "image preview: opt-in emits an <img> alongside source chars" {
 ///|
 test "image preview: default does not emit <img>" {
   let html = md_to_html_literal("![cat](/img/cat.png)\n")
-  @debug.debug_inspect(html.contains("<img class=\"md-image-preview\""), content="false")
+  @debug.debug_inspect(
+    html.contains("<img class=\"md-image-preview\""),
+    content="false",
+  )
 }
 
 ///|
@@ -525,14 +548,20 @@ test "image preview: preserves overlay invariant" {
 test "image preview: invariant holds with title" {
   let src = "look ![cat](/cat.png \"a cat\") here\n"
   let doc = parse(src).document
-  assert_eq(strip_html(render_html_literal(doc, image_preview=true)), serialize(doc))
+  assert_eq(
+    strip_html(render_html_literal(doc, image_preview=true)),
+    serialize(doc),
+  )
 }
 
 ///|
 test "image preview: invariant holds with multiple images in one paragraph" {
   let src = "![one](/1.png) and ![two](/2.png)\n"
   let doc = parse(src).document
-  assert_eq(strip_html(render_html_literal(doc, image_preview=true)), serialize(doc))
+  assert_eq(
+    strip_html(render_html_literal(doc, image_preview=true)),
+    serialize(doc),
+  )
 }
 
 ///|

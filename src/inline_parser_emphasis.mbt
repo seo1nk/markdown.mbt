@@ -1,8 +1,13 @@
 ///| Emphasis (`*`, `_`) and strong (`**`, `__`) inline parsing.
+
 ///|
+
 ///| Split from inline_parser.mbt to keep that file focused on the inline
+
 ///| dispatcher; this file contains the simple single-pass emphasis matcher
+
 ///| plus its `parse_until_closing_marker` helper. The full CommonMark
+
 ///| delimiter-stack algorithm lives in inline_parser_strict.mbt.
 
 ///|

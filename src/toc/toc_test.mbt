@@ -79,12 +79,18 @@ test "extract_from_blocks: basic headings" {
   // h1 is skipped, only h2-h4 included
   @debug.debug_inspect(toc.length(), content="3")
   @debug.debug_inspect(toc[0].level, content="2")
-  @debug.debug_inspect(toc[0].text, content=(
-    #|"Section 1"
-  ))
-  @debug.debug_inspect(toc[0].id, content=(
-    #|"section-1"
-  ))
+  @debug.debug_inspect(
+    toc[0].text,
+    content=(
+      #|"Section 1"
+    ),
+  )
+  @debug.debug_inspect(
+    toc[0].id,
+    content=(
+      #|"section-1"
+    ),
+  )
   @debug.debug_inspect(toc[1].level, content="3")
   @debug.debug_inspect(toc[2].level, content="2")
 }
@@ -98,15 +104,24 @@ test "extract_from_blocks: nested containers preserve heading order" {
   ]
   let toc = extract_from_blocks(blocks)
   @debug.debug_inspect(toc.length(), content="3")
-  @debug.debug_inspect(toc[0].text, content=(
-    #|"Quoted"
-  ))
-  @debug.debug_inspect(toc[1].text, content=(
-    #|"Nested Bullet"
-  ))
-  @debug.debug_inspect(toc[2].text, content=(
-    #|"Nested Ordered"
-  ))
+  @debug.debug_inspect(
+    toc[0].text,
+    content=(
+      #|"Quoted"
+    ),
+  )
+  @debug.debug_inspect(
+    toc[1].text,
+    content=(
+      #|"Nested Bullet"
+    ),
+  )
+  @debug.debug_inspect(
+    toc[2].text,
+    content=(
+      #|"Nested Ordered"
+    ),
+  )
 }
 
 ///|
@@ -116,10 +131,12 @@ test "extract_description_from_blocks: first paragraph" {
     make_paragraph("This is the description."),
   ]
   let desc = extract_description_from_blocks(blocks)
-  @debug.debug_inspect(desc, content=(
-    #|Some("This is the description.")
-
-  ))
+  @debug.debug_inspect(
+    desc,
+    content=(
+      #|Some("This is the description.")
+    ),
+  )
 }
 
 ///|
@@ -137,10 +154,12 @@ test "extract_description_from_blocks: truncation" {
 test "extract_description_from_blocks: prefers word boundary" {
   let blocks = [make_paragraph("alpha beta gamma delta")]
   let desc = extract_description_from_blocks(blocks, max_length=18)
-  @debug.debug_inspect(desc, content=(
-    #|Some("alpha beta gamma...")
-
-  ))
+  @debug.debug_inspect(
+    desc,
+    content=(
+      #|Some("alpha beta gamma...")
+    ),
+  )
 }
 
 ///|
@@ -154,9 +173,12 @@ test "extract_text_from_inlines: basic text" {
     ),
   ]
   let text = extract_text_from_inlines(inlines)
-  @debug.debug_inspect(text, content=(
-    #|"Hello World"
-  ))
+  @debug.debug_inspect(
+    text,
+    content=(
+      #|"Hello World"
+    ),
+  )
 }
 
 ///|
@@ -187,7 +209,10 @@ test "extract_text_from_inlines: nested formatting and skips html" {
     @md.Inline::FootnoteReference(label="note", span=@md.Span::empty()),
   ]
   let text = extract_text_from_inlines(inlines)
-  @debug.debug_inspect(text, content=(
-    #|"Intro nested link diagram[^note]"
-  ))
+  @debug.debug_inspect(
+    text,
+    content=(
+      #|"Intro nested link diagram[^note]"
+    ),
+  )
 }

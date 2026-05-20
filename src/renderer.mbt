@@ -397,7 +397,7 @@ fn render_inline_html(
 /// Most input strings don't contain any HTML-special characters, so a
 /// quick scan-pass lets us return the input unchanged in that common
 /// case and avoid building a new buffer.
-fn escape_html(s : String, attr~ : Bool = false) -> String {
+fn escape_html(s : String, attr? : Bool = false) -> String {
   let mut needs_escape = false
   for c in s {
     match c {
