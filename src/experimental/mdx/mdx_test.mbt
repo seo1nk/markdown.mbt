@@ -1,0 +1,495 @@
+///|
+/// MDX Parser Tests
+
+// =============================================================================
+// Attribute Parser Tests
+// =============================================================================
+
+test "parse string attribute with double quotes" {
+  let (attrs, _) = parse_attributes(" name=\"value\">", 0)
+  @debug.assert_eq(attrs.length(), 1)
+  @debug.assert_eq(attrs[0].name, "name")
+  match attrs[0].value {
+    StringValue(v) => @debug.assert_eq(v, "value")
+    _ => fail("Expected StringValue")
+  }
+}
+
+///|
+test "parse string attribute with single quotes" {
+  let (attrs, _) = parse_attributes(" name='value'>", 0)
+  @debug.assert_eq(attrs.length(), 1)
+  @debug.assert_eq(attrs[0].name, "name")
+  match attrs[0].value {
+    StringValue(v) => @debug.assert_eq(v, "value")
+    _ => fail("Expected StringValue")
+  }
+}
+
+///|
+test "parse expression attribute" {
+  let (attrs, _) = parse_attributes(" count={42}>", 0)
+  @debug.assert_eq(attrs.length(), 1)
+  @debug.assert_eq(attrs[0].name, "count")
+  match attrs[0].value {
+    ExpressionValue(v) => @debug.assert_eq(v, "42")
+    _ => fail("Expected ExpressionValue")
+  }
+}
+
+///|
+test "parse boolean attribute" {
+  let (attrs, _) = parse_attributes(" disabled>", 0)
+  @debug.assert_eq(attrs.length(), 1)
+  @debug.assert_eq(attrs[0].name, "disabled")
+  match attrs[0].value {
+    BooleanValue => ()
+    _ => fail("Expected BooleanValue")
+  }
+}
+
+///|
+test "parse multiple attributes" {
+  let (attrs, _) = parse_attributes(
+    " id=\"main\" class='container' onClick={handleClick} disabled>", 0,
+  )
+  @debug.assert_eq(attrs.length(), 4)
+  @debug.assert_eq(attrs[0].name, "id")
+  @debug.assert_eq(attrs[1].name, "class")
+  @debug.assert_eq(attrs[2].name, "onClick")
+  @debug.assert_eq(attrs[3].name, "disabled")
+}
+
+///|
+test "parse nested expression" {
+  let (attrs, _) = parse_attributes(" data={{ key: 'value' }}>", 0)
+  @debug.assert_eq(attrs.length(), 1)
+  @debug.assert_eq(attrs[0].name, "data")
+  match attrs[0].value {
+    ExpressionValue(v) => @debug.assert_eq(v, "{ key: 'value' }")
+    _ => fail("Expected ExpressionValue")
+  }
+}
+
+// =============================================================================
+// Import Parser Tests
+// =============================================================================
+
+///|
+test "parse default import" {
+  let result = @markdown.parse("import Layout from './Layout'\n")
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    ImportDecl(specifiers~, source~, ..) => {
+      @debug.assert_eq(source, "./Layout")
+      @debug.assert_eq(specifiers.length(), 1)
+      @debug.assert_eq(specifiers[0].name, "Layout")
+      @debug.assert_eq(specifiers[0].is_default, true)
+    }
+    _ => fail("Expected ImportDecl")
+  }
+}
+
+///|
+test "parse named imports" {
+  let result = @markdown.parse("import { Button, Card } from './components'\n")
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    ImportDecl(specifiers~, source~, ..) => {
+      @debug.assert_eq(source, "./components")
+      @debug.assert_eq(specifiers.length(), 2)
+      @debug.assert_eq(specifiers[0].name, "Button")
+      @debug.assert_eq(specifiers[1].name, "Card")
+    }
+    _ => fail("Expected ImportDecl")
+  }
+}
+
+///|
+test "parse aliased import" {
+  let result = @markdown.parse("import { Button as Btn } from './components'\n")
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    ImportDecl(specifiers~, ..) => {
+      @debug.assert_eq(specifiers.length(), 1)
+      @debug.assert_eq(specifiers[0].name, "Button")
+      @debug.assert_eq(specifiers[0].local_name, Some("Btn"))
+    }
+    _ => fail("Expected ImportDecl")
+  }
+}
+
+///|
+test "parse namespace import" {
+  let result = @markdown.parse("import * as Components from './components'\n")
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    ImportDecl(specifiers~, ..) => {
+      @debug.assert_eq(specifiers.length(), 1)
+      @debug.assert_eq(specifiers[0].name, "Components")
+      @debug.assert_eq(specifiers[0].is_star, true)
+    }
+    _ => fail("Expected ImportDecl")
+  }
+}
+
+// =============================================================================
+// Export Parser Tests
+// =============================================================================
+
+///|
+test "parse export const" {
+  let result = @markdown.parse("export const title = 'Hello'\n")
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    ExportDecl(kind~, name~, value~, ..) => {
+      @debug.assert_eq(kind, ExportKind::Const)
+      @debug.assert_eq(name, Some("title"))
+      @debug.assert_eq(value, "'Hello'")
+    }
+    _ => fail("Expected ExportDecl")
+  }
+}
+
+///|
+test "parse export default" {
+  let result = @markdown.parse("export default Layout\n")
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    ExportDecl(kind~, name~, value~, ..) => {
+      @debug.assert_eq(kind, ExportKind::Default)
+      @debug.assert_eq(name, None)
+      @debug.assert_eq(value, "Layout")
+    }
+    _ => fail("Expected ExportDecl")
+  }
+}
+
+///|
+test "parse export function" {
+  let result = @markdown.parse(
+    "export function getLayout() { return <Layout /> }\n",
+  )
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    ExportDecl(kind~, name~, ..) => {
+      @debug.assert_eq(kind, ExportKind::Function)
+      @debug.assert_eq(name, Some("getLayout"))
+    }
+    _ => fail("Expected ExportDecl")
+  }
+}
+
+// =============================================================================
+// JSX Element Tests
+// =============================================================================
+
+///|
+test "parse JSX component" {
+  let result = @markdown.parse("<Button>Click me</Button>\n")
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    JsxElement(tag~, children~, self_closing~, ..) => {
+      @debug.assert_eq(tag, "Button")
+      @debug.assert_eq(children, "Click me")
+      @debug.assert_eq(self_closing, false)
+    }
+    _ => fail("Expected JsxElement")
+  }
+}
+
+///|
+test "parse self-closing JSX" {
+  let result = @markdown.parse("<Spacer />\n")
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    JsxElement(tag~, children~, self_closing~, ..) => {
+      @debug.assert_eq(tag, "Spacer")
+      @debug.assert_eq(children, "")
+      @debug.assert_eq(self_closing, true)
+    }
+    _ => fail("Expected JsxElement")
+  }
+}
+
+///|
+test "parse JSX with attributes" {
+  let result = @markdown.parse(
+    "<Button variant=\"primary\" onClick={handleClick}>Submit</Button>\n",
+  )
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    JsxElement(tag~, attributes~, ..) => {
+      @debug.assert_eq(tag, "Button")
+      @debug.assert_eq(attributes.length(), 2)
+      @debug.assert_eq(attributes[0].name, "variant")
+      @debug.assert_eq(attributes[1].name, "onClick")
+    }
+    _ => fail("Expected JsxElement")
+  }
+}
+
+///|
+test "parse Web Component" {
+  let result = @markdown.parse(
+    "<my-component data-value=\"123\">Content</my-component>\n",
+  )
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    JsxElement(tag~, attributes~, children~, ..) => {
+      @debug.assert_eq(tag, "my-component")
+      @debug.assert_eq(attributes.length(), 1)
+      @debug.assert_eq(attributes[0].name, "data-value")
+      @debug.assert_eq(children, "Content")
+    }
+    _ => fail("Expected JsxElement")
+  }
+}
+
+///|
+test "parse multi-line JSX element" {
+  // Note: `>` must be at the end of the last attribute line, not on its own line
+  // because markdown interprets a line starting with `>` as a blockquote
+  let mdx =
+    #|<Card
+    #|  title="Hello"
+    #|  onClick={handleClick}>
+    #|  Multi-line content
+    #|</Card>
+    #|
+  let result = @markdown.parse(mdx)
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    JsxElement(tag~, attributes~, children~, self_closing~, ..) => {
+      @debug.assert_eq(tag, "Card")
+      @debug.assert_eq(attributes.length(), 2)
+      @debug.assert_eq(attributes[0].name, "title")
+      @debug.assert_eq(attributes[1].name, "onClick")
+      @debug.assert_eq(self_closing, false)
+      assert_true(children.contains("Multi-line content"))
+    }
+    _ => fail("Expected JsxElement")
+  }
+}
+
+///|
+test "parse multi-line self-closing JSX" {
+  let mdx =
+    #|<Image
+    #|  src="/photo.jpg"
+    #|  alt="Photo"
+    #|/>
+    #|
+  let result = @markdown.parse(mdx)
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    JsxElement(tag~, attributes~, self_closing~, ..) => {
+      @debug.assert_eq(tag, "Image")
+      @debug.assert_eq(attributes.length(), 2)
+      @debug.assert_eq(self_closing, true)
+    }
+    _ => fail("Expected JsxElement")
+  }
+}
+
+// =============================================================================
+// Metadata Extraction Tests
+// =============================================================================
+
+///|
+test "extract metadata from MDX document" {
+  let mdx =
+    #|import { Button } from './components'
+    #|import Layout from './Layout'
+    #|export const title = 'Hello'
+    #|
+    #|# Heading
+    #|
+    #|<Button>Click</Button>
+    #|
+    #|<my-element />
+    #|
+  let result = @markdown.parse(mdx)
+  let metadata = extract_mdx_metadata(result.document)
+  @debug.assert_eq(metadata.imports.length(), 2)
+  @debug.assert_eq(metadata.exports.length(), 1)
+  @debug.assert_eq(metadata.components.length(), 2)
+}
+
+///|
+test "extract import sources" {
+  let mdx =
+    #|import { Button } from './components'
+    #|import Layout from './Layout'
+    #|
+  let result = @markdown.parse(mdx)
+  let sources = extract_import_sources(result.document)
+  @debug.assert_eq(sources.length(), 2)
+}
+
+///|
+test "extract component names" {
+  let mdx =
+    #|<Button>Click</Button>
+    #|
+    #|<my-element attr="value">Content</my-element>
+    #|
+  let result = @markdown.parse(mdx)
+  let names = extract_component_names(result.document)
+  @debug.assert_eq(names.length(), 2)
+}
+
+// =============================================================================
+// Transformer Tests
+// =============================================================================
+
+///|
+test "strip all MDX blocks" {
+  let mdx =
+    #|import { Button } from './components'
+    #|
+    #|# Heading
+    #|
+    #|Some text
+    #|
+    #|<Button>Click</Button>
+    #|
+  let result = @markdown.parse(mdx)
+  let stripped = strip_mdx_blocks(result.document)
+
+  // Should have fewer blocks (import and JSX removed)
+  assert_true(stripped.children.length() < result.document.children.length())
+}
+
+///|
+test "strip only imports" {
+  let mdx =
+    #|import { Button } from './components'
+    #|
+    #|# Heading
+    #|
+    #|<Button>Click</Button>
+    #|
+  let result = @markdown.parse(mdx)
+  let stripped = strip_imports(result.document)
+
+  // JSX should still be present
+  let jsx_blocks = extract_jsx_elements(stripped)
+  @debug.assert_eq(jsx_blocks.length(), 1)
+}
+
+// =============================================================================
+// Helper Function Tests
+// =============================================================================
+
+///|
+test "is_jsx_component detects uppercase start" {
+  assert_true(is_jsx_component("Button"))
+  assert_true(is_jsx_component("MyComponent"))
+  assert_false(is_jsx_component("button"))
+  assert_false(is_jsx_component("my-element"))
+}
+
+///|
+test "is_web_component detects hyphen" {
+  assert_true(is_web_component("my-element"))
+  assert_true(is_web_component("custom-button"))
+  assert_false(is_web_component("Button"))
+  assert_false(is_web_component("div"))
+}
+
+///|
+test "is_mdx_tag combines both checks" {
+  assert_true(is_mdx_tag("Button")) // JSX
+  assert_true(is_mdx_tag("my-element")) // Web Component
+  assert_false(is_mdx_tag("div")) // HTML
+  assert_false(is_mdx_tag("span")) // HTML
+}
+
+// =============================================================================
+// Multi-line JSX Children Tests (Issue: mdx-multiline-children-issue)
+// =============================================================================
+
+///|
+test "multi-line JSX children are preserved" {
+  let mdx =
+    #|<my-comp>
+    #|  <div>Child content</div>
+    #|  <p>More content</p>
+    #|</my-comp>
+    #|
+  let result = @markdown.parse(mdx)
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    JsxElement(tag~, children~, ..) => {
+      @debug.assert_eq(tag, "my-comp")
+      // Children should not be empty
+      assert_true(children.length() > 0)
+      assert_true(children.contains("Child content"))
+      assert_true(children.contains("More content"))
+    }
+    _ => fail("Expected JsxElement")
+  }
+}
+
+///|
+test "multi-line JSX with nested components" {
+  let mdx =
+    #|<Wrapper>
+    #|  <Header />
+    #|  <Content>
+    #|    <p>Nested text</p>
+    #|  </Content>
+    #|  <Footer />
+    #|</Wrapper>
+    #|
+  let result = @markdown.parse(mdx)
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    JsxElement(tag~, children~, ..) => {
+      @debug.assert_eq(tag, "Wrapper")
+      assert_true(children.contains("Header"))
+      assert_true(children.contains("Content"))
+      assert_true(children.contains("Footer"))
+      assert_true(children.contains("Nested text"))
+    }
+    _ => fail("Expected JsxElement")
+  }
+}
+
+///|
+test "web component with multi-line children" {
+  let mdx =
+    #|<my-component>
+    #|  <div>Content here</div>
+    #|  <p>More content</p>
+    #|</my-component>
+    #|
+  let result = @markdown.parse(mdx)
+  let blocks = parse_mdx_blocks(result.document)
+  @debug.assert_eq(blocks.length(), 1)
+  match blocks[0] {
+    JsxElement(tag~, children~, self_closing~, ..) => {
+      @debug.assert_eq(tag, "my-component")
+      @debug.assert_eq(self_closing, false)
+      assert_true(children.contains("Content here"))
+      assert_true(children.contains("More content"))
+    }
+    _ => fail("Expected JsxElement")
+  }
+}

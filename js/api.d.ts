@@ -144,6 +144,60 @@ export function toHtml(source: string, options?: MarkdownOptions): string;
 export function toMarkdown(source: string, options?: MarkdownOptions): string;
 
 /**
+ * Render markdown using the "literal" mode, which preserves syntax markers
+ * (`#`, `*`, `` ` ``, list bullets, fence ticks, blockquote `>` …) wrapped
+ * in `<span class="md-marker" aria-hidden="true">…</span>` inside the
+ * rendered HTML.
+ *
+ * The visible text of the output (HTML tags stripped, basic character
+ * references decoded) is byte-for-byte equal to `toMarkdown(source)`.
+ * Combined with `font-family: monospace; white-space: pre-wrap;` (see
+ * `@mizchi/markdown/editor/overlay.css`) this lets a consumer overlay the
+ * rendered output on a syntax-highlighted source view so that every glyph
+ * lines up.
+ *
+ * @example
+ * toHtmlLiteral("## Intro\n");
+ * // => '<h2><span class="md-marker" aria-hidden="true">## </span>Intro</h2>\n'
+ */
+export interface LiteralOptions extends MarkdownOptions {
+  /**
+   * When true, every top-level block element in the rendered HTML carries
+   * `data-src-start` / `data-src-end` attributes (character offsets in
+   * the original source). The literal renderer's visible-text invariant
+   * means the offset of a character inside such an element equals
+   * `data-src-start + char-index-within-element`, so a "click → cursor"
+   * editor can compute exact source positions by walking up to the
+   * nearest annotated ancestor.
+   *
+   * Inline elements (em, strong, code, a, ...) are NOT annotated because
+   * their spans come from the inline parser and are relative to the
+   * surrounding block's content, not the document.
+   *
+   * Defaults to false.
+   */
+  positions?: boolean;
+
+  /**
+   * When true, each `<span class="md-image">` wrapper also contains an
+   * `<img class="md-image-preview" src=… alt=… title=…>` slot alongside
+   * the source characters `![alt](url)`. The `<img>` carries no visible
+   * text so the source/preview overlay invariant is preserved.
+   *
+   * `@mizchi/markdown/editor/overlay.css` hides the slot by default;
+   * the consumer opts in by adding `.with-image-preview` to a container
+   * above the rendered output. Reference images (`![alt][label]`) emit
+   * an empty-`src` slot carrying `data-md-image-ref="label"` so the
+   * consumer can resolve the URL from their link-definition map.
+   *
+   * Defaults to false.
+   */
+  imagePreview?: boolean;
+}
+
+export function toHtmlLiteral(source: string, options?: LiteralOptions): string;
+
+/**
  * Create a new document handle from markdown source.
  * Use this for incremental parsing scenarios.
  *

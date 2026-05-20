@@ -28,6 +28,7 @@
       "types": "./dist/frontend/editor/index.d.ts"
     },
     "./editor/style.css": "./dist/frontend/editor/style.css",
+    "./editor/overlay.css": "./dist/frontend/editor/overlay.css",
     "./highlight": {
       "import": "./dist/frontend/highlight/index.js",
       "types": "./dist/frontend/highlight/index.d.ts"
@@ -68,11 +69,21 @@
   "author": "mizchi <miz404@gmail.com>",
   "license": "MIT",
   "packageManager": "pnpm@10.23.0",
+  "peerDependencies": {
+    "@luna_ui/luna": "^0.11.0"
+  },
+  "peerDependenciesMeta": {
+    "@luna_ui/luna": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@luna_ui/luna": "^0.11.0",
     "@playwright/test": "^1.58.2",
     "@types/mdast": "^4.0.4",
     "@types/unist": "^3.0.3",
+    "axe-core": "^4.11.4",
     "playwright": "^1.58.2",
     "preact": "^10.28.4",
     "puppeteer": "^24.38.0",
@@ -88,8 +99,32 @@
     "wrangler": "^4.81.1"
   },
   "files": [
-    "js",
-    "dist",
-    "_build/js/release/build"
+    "js/api.js",
+    "js/api.d.ts",
+    "dist/frontend",
+    "_build/js/release/build/api/api.js",
+    "_build/js/release/build/api/api.d.ts",
+    "_build/js/release/build/api/moonbit.d.ts",
+    "_build/js/release/build/highlight_typescript/highlight_typescript.js",
+    "_build/js/release/build/highlight_typescript/highlight_typescript.d.ts",
+    "_build/js/release/build/highlight_typescript/moonbit.d.ts",
+    "_build/js/release/build/highlight_moonbit/highlight_moonbit.js",
+    "_build/js/release/build/highlight_moonbit/highlight_moonbit.d.ts",
+    "_build/js/release/build/highlight_moonbit/moonbit.d.ts",
+    "_build/js/release/build/highlight_json/highlight_json.js",
+    "_build/js/release/build/highlight_json/highlight_json.d.ts",
+    "_build/js/release/build/highlight_json/moonbit.d.ts",
+    "_build/js/release/build/highlight_html/highlight_html.js",
+    "_build/js/release/build/highlight_html/highlight_html.d.ts",
+    "_build/js/release/build/highlight_html/moonbit.d.ts",
+    "_build/js/release/build/highlight_css/highlight_css.js",
+    "_build/js/release/build/highlight_css/highlight_css.d.ts",
+    "_build/js/release/build/highlight_css/moonbit.d.ts",
+    "_build/js/release/build/highlight_bash/highlight_bash.js",
+    "_build/js/release/build/highlight_bash/highlight_bash.d.ts",
+    "_build/js/release/build/highlight_bash/moonbit.d.ts",
+    "_build/js/release/build/highlight_rust/highlight_rust.js",
+    "_build/js/release/build/highlight_rust/highlight_rust.d.ts",
+    "_build/js/release/build/highlight_rust/moonbit.d.ts"
   ]
 }

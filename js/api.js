@@ -9,6 +9,7 @@ import {
   md_to_html_without_autolink,
   md_to_html_with_wikilinks_and_autolink,
   md_to_html_with_wikilinks_without_autolink,
+  md_to_html_literal,
   md_to_markdown,
   md_to_markdown_with_wikilinks,
   md_to_ast_json,
@@ -78,6 +79,35 @@ export function toMarkdown(source, options = {}) {
   return useWikilinks(options)
     ? md_to_markdown_with_wikilinks(source)
     : md_to_markdown(source);
+}
+
+/**
+ * Render markdown using the "literal" mode, which keeps Markdown markers
+ * (`#`, `*`, `` ` ``, `>`, list bullets, etc.) inside the rendered output
+ * wrapped in `<span class="md-marker" aria-hidden="true">…</span>`.
+ *
+ * The visible text of the output (HTML tags stripped, character refs
+ * decoded) is byte-for-byte equal to `toMarkdown(source)`. Combined with
+ * `font-family: monospace; white-space: pre-wrap;` (see
+ * `@mizchi/markdown/editor/overlay.css`), this lets you overlay the
+ * rendered output on a syntax-highlighted source view and verify that
+ * every glyph lines up.
+ *
+ * @param {string} source - Markdown source
+ * @param {{ wikilinks?: boolean }} [options] - Parser extensions
+ * @returns {string} HTML
+ */
+/** Bit flags accepted by the literal renderer FFI export. */
+const LITERAL_WIKILINKS = 1;
+const LITERAL_POSITIONS = 2;
+const LITERAL_IMAGE_PREVIEW = 4;
+
+export function toHtmlLiteral(source, options = {}) {
+  let flags = 0;
+  if (useWikilinks(options)) flags |= LITERAL_WIKILINKS;
+  if (options?.positions === true) flags |= LITERAL_POSITIONS;
+  if (options?.imagePreview === true) flags |= LITERAL_IMAGE_PREVIEW;
+  return md_to_html_literal(source, flags);
 }
 
 // =============================================================================

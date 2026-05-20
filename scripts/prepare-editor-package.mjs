@@ -6,6 +6,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
 const files = [
   ["frontend/editor/style.css", "dist/frontend/editor/style.css"],
+  ["frontend/editor/overlay.css", "dist/frontend/editor/overlay.css"],
 ];
 
 for (const [from, to] of files) {

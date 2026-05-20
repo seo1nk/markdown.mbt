@@ -2,7 +2,14 @@ export {
   SyntaxHighlightEditor,
   type SyntaxHighlightEditorHandle,
   type SyntaxHighlightEditorProps,
-} from "../../playground/SyntaxHighlightEditor.js";
+} from "./SyntaxHighlightEditor.js";
+
+export {
+  LiteralEditor,
+  patchTopLevelChildren,
+  type LiteralRenderer,
+  type PatchStats,
+} from "./literal-editor.js";
 
 export {
   getLoadedHighlighter,

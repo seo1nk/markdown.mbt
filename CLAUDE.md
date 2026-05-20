@@ -6,14 +6,43 @@ CST-based incremental Markdown parser implemented in MoonBit.
 
 ```
 src/
-├── types.mbt              # CST type definitions (Span, Block, Inline)
-├── scanner.mbt            # O(1) character access (Array[Char])
-├── block_parser.mbt       # Block parser
-├── inline_parser.mbt      # Inline parser
-├── incremental.mbt        # Incremental parsing (EditInfo)
-├── serializer.mbt         # Lossless serializer
-├── crdt_experiment.mbt    # CRDT experimental code
-└── bench.mbt              # Benchmarks
+├── types.mbt                       # CST type definitions (Span, Block, Inline)
+├── scanner.mbt                     # O(1) character access (Array[Char])
+├── unicode.mbt                     # Shared Unicode classification helpers
+├── block_parser.mbt                # Block parser dispatcher / paragraph / blockquote / thematic break
+├── block_parser_heading.mbt        # ATX & setext heading parsing
+├── block_parser_code.mbt           # Fenced & indented code-block parsing
+├── block_parser_link_def.mbt       # Link reference & GFM footnote definitions
+├── block_parser_list.mbt           # Bullet & ordered list parsing
+├── block_parser_table.mbt          # GFM table parsing
+├── block_parser_html.mbt           # HTML block parsing
+├── block_parser_frontmatter.mbt    # YAML frontmatter parsing
+├── inline_parser.mbt               # Inline parser dispatcher (single-pass)
+├── inline_parser_emphasis.mbt      # `*` / `_` emphasis + strong (single-pass)
+├── inline_parser_link.mbt          # Links, images, wikilinks, footnote refs
+├── inline_parser_strict.mbt        # CommonMark delimiter-stack emphasis
+├── incremental.mbt                 # Incremental parsing (EditInfo)
+├── serializer.mbt                  # Lossless block serializer + md_parse_and_render
+├── serializer_inline.mbt           # Inline serialization (text, emphasis, links, ...)
+├── renderer.mbt                    # HTML renderer + md_to_html
+├── renderer_autolink.mbt           # Bare-URL autolink boundary helpers
+├── renderer_literal.mbt            # Source-preserving HTML renderer (block dispatch + helpers)
+├── renderer_literal_inline.mbt     # Inline rendering for the literal renderer
+├── plugin.mbt                      # CodeBlockInfo + RenderOptions + parse_code_block_info
+├── api/                            # FFI exports for JS/WASM consumers
+├── experimental/
+│   ├── crdt/                       # CRDT experimental code (isolated)
+│   ├── multipass/                  # Experimental multi-pass inline parser
+│   ├── notebook/                   # Notebook cells / executable code blocks
+│   ├── mdx/                        # MDX (JSX-in-Markdown) extraction
+│   ├── slide/                      # Slide-deck splitting
+│   ├── tui/                        # Terminal renderer
+│   └── purify/                     # HTML sanitization
+├── bench.mbt                       # Document parse/serialize/roundtrip benches
+├── bench_inline.mbt                # Inline parser benches
+├── bench_table.mbt                 # GFM table benches
+├── bench_scanner.mbt               # Scanner / block-only benches
+└── bench_incremental.mbt           # Incremental parser benches
 ```
 
 ## Design Philosophy
