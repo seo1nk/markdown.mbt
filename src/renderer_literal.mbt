@@ -77,7 +77,9 @@
 ///   inside each `<span class="md-image">` wrapper alongside the
 ///   `![alt](url)` source characters. The `<img>` carries no visible
 ///   text (`textContent` is empty), so the overlay invariant is
-///   preserved. Default `display: none` ships in
+///   preserved. If the alt text ends in `:wN` (for example
+///   `![diagram:w500](...)`), the preview slot receives width metadata
+///   and the real image alt text is `diagram`. Default `display: none` ships in
 ///   `@mizchi/markdown/editor/overlay.css`; the consumer opts in by
 ///   adding `.with-image-preview` to a container above the rendered
 ///   output (or by overriding the rule themselves).
@@ -233,20 +235,23 @@ fn needs_html_attr_escape(s : String) -> Bool {
 }
 
 ///|
-/// Append `<img class="md-image-preview" src=… alt=… title=… loading="lazy">`.
-/// The `<img>` contributes no visible text, so the overlay invariant is
-/// preserved. CSS in `overlay.css` hides it by default; the consumer
-/// opts in by adding `.with-image-preview` (or by overriding the rule).
+/// Append a non-text image preview slot:
+/// `<span class="md-image-preview-slot" ...><img class="md-image-preview" ...></span>`.
+/// The slot contributes no visible text, so the text-content invariant is
+/// preserved. CSS in `overlay.css` hides it by default; the consumer opts
+/// in by adding `.with-image-preview` (or by overriding the rule).
 fn write_image_preview_slot(
   buf : StringBuilder,
   url : String,
   alt : String,
   title : String,
 ) -> Unit {
+  let meta = parse_image_preview_alt(alt)
+  write_image_preview_slot_open(buf, meta)
   buf.write_string("<img class=\"md-image-preview\" src=\"")
   escape_html_attr_into(buf, url)
   buf.write_string("\" alt=\"")
-  escape_html_attr_into(buf, alt)
+  escape_html_attr_into(buf, meta.alt)
   buf.write_char('"')
   if !title.is_empty() {
     buf.write_string(" title=\"")
@@ -254,6 +259,155 @@ fn write_image_preview_slot(
     buf.write_char('"')
   }
   buf.write_string(" loading=\"lazy\" />")
+  buf.write_string("</span>")
+}
+
+fn write_image_preview_block_slot(buf : StringBuilder, url : String) -> Unit {
+  buf.write_string(
+    "<span class=\"md-image-preview-slot md-image-preview-block\" data-md-noneditable=\"true\" contenteditable=\"false\">",
+  )
+  buf.write_string("<img class=\"md-image-preview\" src=\"")
+  escape_html_attr_into(buf, url)
+  buf.write_string("\" alt=\"\" loading=\"lazy\" />")
+  buf.write_string("</span>")
+}
+
+fn write_image_preview_slot_open(buf : StringBuilder, meta : ImagePreviewAlt) -> Unit {
+  buf.write_string(
+    "<span class=\"md-image-preview-slot\" data-md-noneditable=\"true\" contenteditable=\"false\"",
+  )
+  match meta.width {
+    Some(width) => {
+      buf.write_string(" data-md-image-width=\"")
+      buf.write_string(width.to_string())
+      buf.write_string("\" style=\"--md-literal-image-width:")
+      buf.write_string(width.to_string())
+      buf.write_string("px\"")
+    }
+    None => ()
+  }
+  buf.write_string(">")
+}
+
+priv struct ImagePreviewAlt {
+  alt : String
+  width : Int?
+}
+
+///|
+/// Parse a Marp-inspired width directive from image alt text.
+///
+/// Supported form: `![diagram:w500](...)`. The literal source still shows
+/// `:w500`, but preview metadata uses `diagram` for the real image `alt`
+/// attribute and reserves 500 CSS pixels for the atomic image slot.
+fn parse_image_preview_alt(alt : String) -> ImagePreviewAlt {
+  let chars = alt.to_array()
+  let len = chars.length()
+  if len < 4 {
+    return { alt, width: None }
+  }
+  let mut digit_start = len
+  while digit_start > 0 && is_digit(chars[digit_start - 1]) {
+    digit_start = digit_start - 1
+  }
+  if digit_start == len || digit_start < 2 {
+    return { alt, width: None }
+  }
+  if chars[digit_start - 1] != 'w' || chars[digit_start - 2] != ':' {
+    return { alt, width: None }
+  }
+  let mut width = 0
+  for i = digit_start; i < len; i = i + 1 {
+    width = width * 10 + (chars[i].to_int() - '0'.to_int())
+  }
+  if width <= 0 {
+    return { alt, width: None }
+  }
+  let visible : Array[Char] = []
+  for i = 0; i < digit_start - 2; i = i + 1 {
+    visible.push(chars[i])
+  }
+  {
+    alt: trim_trailing_ascii_space(String::from_array(visible)),
+    width: Some(width),
+  }
+}
+
+fn trim_trailing_ascii_space(s : String) -> String {
+  let chars = s.to_array()
+  let mut end = chars.length()
+  while end > 0 && (chars[end - 1] == ' ' || chars[end - 1] == '\t') {
+    end = end - 1
+  }
+  if end == chars.length() {
+    return s
+  }
+  let trimmed : Array[Char] = []
+  for i = 0; i < end; i = i + 1 {
+    trimmed.push(chars[i])
+  }
+  String::from_array(trimmed)
+}
+
+fn standalone_image_url_from_inline(inline : Inline) -> String? {
+  match inline {
+    Inline::Text(content~, ..) => standalone_image_url_from_text(content)
+    Inline::Autolink(url~, is_email~, ..) =>
+      if is_email {
+        None
+      } else if is_previewable_image_url(url) {
+        Some(url)
+      } else {
+        None
+      }
+    _ => None
+  }
+}
+
+fn standalone_image_url_from_text(content : String) -> String? {
+  let trimmed = content.trim(chars=" \t\n\r").to_owned()
+  if trimmed.is_empty() || contains_ascii_space(trimmed) {
+    return None
+  }
+  if is_previewable_image_url(trimmed) {
+    Some(trimmed)
+  } else {
+    None
+  }
+}
+
+fn contains_ascii_space(s : String) -> Bool {
+  for c in s {
+    match c {
+      ' ' | '\t' | '\n' | '\r' => return true
+      _ => ()
+    }
+  }
+  false
+}
+
+fn is_previewable_image_url(url : String) -> Bool {
+  let lower = image_url_path_part(url).to_lower()
+  lower.has_prefix("data:image/") ||
+  lower.has_suffix(".png") ||
+  lower.has_suffix(".jpg") ||
+  lower.has_suffix(".jpeg") ||
+  lower.has_suffix(".gif") ||
+  lower.has_suffix(".webp") ||
+  lower.has_suffix(".avif") ||
+  lower.has_suffix(".svg") ||
+  lower.has_suffix(".bmp") ||
+  lower.has_suffix(".ico")
+}
+
+fn image_url_path_part(url : String) -> String {
+  for i = 0; i < url.length(); i = i + 1 {
+    match url.get_char(i) {
+      Some('?') | Some('#') => return url.unsafe_substring(start=0, end=i)
+      _ => ()
+    }
+  }
+  url
 }
 
 ///|
@@ -442,7 +596,7 @@ fn render_block_literal(
       buf.write_string("<p")
       write_pos_attrs(buf, span, opts.positions)
       buf.write_char('>')
-      render_inlines_literal(children, buf, opts)
+      render_paragraph_inlines_literal(children, buf, opts)
       buf.write_string("</p>\n")
     }
     Block::FencedCode(info~, code~, span~, ..) =>

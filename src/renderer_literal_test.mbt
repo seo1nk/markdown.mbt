@@ -525,6 +525,37 @@ test "image preview: opt-in emits an <img> alongside source chars" {
 }
 
 ///|
+test "image preview: alt :wN emits atomic width metadata and clean img alt" {
+  let html = md_to_html_literal("![cat:w500](/img/cat.png)\n", image_preview=true)
+  @debug.debug_inspect(
+    html.contains("class=\"md-image-preview-slot\""),
+    content="true",
+  )
+  @debug.debug_inspect(
+    html.contains("data-md-noneditable=\"true\""),
+    content="true",
+  )
+  @debug.debug_inspect(
+    html.contains("contenteditable=\"false\""),
+    content="true",
+  )
+  @debug.debug_inspect(
+    html.contains("data-md-image-width=\"500\""),
+    content="true",
+  )
+  @debug.debug_inspect(
+    html.contains("--md-literal-image-width:500px"),
+    content="true",
+  )
+  @debug.debug_inspect(
+    html.contains("role=\"img\" aria-label=\"cat\""),
+    content="true",
+  )
+  @debug.debug_inspect(html.contains("alt=\"cat\""), content="true")
+  @debug.debug_inspect(html.contains("![") && html.contains("cat:w500"), content="true")
+}
+
+///|
 test "image preview: default does not emit <img>" {
   let html = md_to_html_literal("![cat](/img/cat.png)\n")
   @debug.debug_inspect(
@@ -572,6 +603,42 @@ test "image preview: reference image emits data-md-image-ref slot" {
   // looks up [L] in the document's link definitions and fills it in.
   @debug.debug_inspect(html.contains("data-md-image-ref=\"L\""), content="true")
   @debug.debug_inspect(html.contains("src="), content="false")
+}
+
+///|
+test "image preview: reference image supports alt width directive" {
+  let src = "![logo:w320][L]\n\n[L]: /logo.png\n"
+  let html = md_to_html_literal(src, image_preview=true)
+  @debug.debug_inspect(
+    html.contains("data-md-image-width=\"320\""),
+    content="true",
+  )
+  @debug.debug_inspect(html.contains("alt=\"logo\""), content="true")
+  @debug.debug_inspect(html.contains("logo:w320"), content="true")
+}
+
+///|
+test "image preview: standalone image URL emits block preview" {
+  let src = "https://example.com/cat.png\nnext line\n"
+  let html = md_to_html_literal(src, image_preview=true)
+  @debug.debug_inspect(
+    html.contains("md-image-preview-block"),
+    content="true",
+  )
+  @debug.debug_inspect(
+    html.contains("src=\"https://example.com/cat.png\""),
+    content="true",
+  )
+  assert_eq(strip_html(html), src)
+}
+
+///|
+test "image preview: standalone non-image URL does not emit block preview" {
+  let html = md_to_html_literal("https://example.com/page\n", image_preview=true)
+  @debug.debug_inspect(
+    html.contains("md-image-preview-block"),
+    content="false",
+  )
 }
 
 ///|

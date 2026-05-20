@@ -22,6 +22,47 @@ fn render_inlines_literal(
 }
 
 ///|
+/// Paragraph renderer variant that can attach a block preview after an
+/// image URL that occupies a whole source line.
+fn render_paragraph_inlines_literal(
+  inlines : Array[Inline],
+  buf : StringBuilder,
+  opts : LiteralOpts,
+) -> Unit {
+  let len = inlines.length()
+  let mut at_line_start = true
+  for i = 0; i < len; i = i + 1 {
+    let inline = inlines[i]
+    match inline {
+      Inline::SoftBreak(..) | Inline::HardBreak(..) => {
+        render_inline_literal(inline, buf, opts)
+        at_line_start = true
+      }
+      _ => {
+        render_inline_literal(inline, buf, opts)
+        if opts.image_preview && at_line_start && is_line_end_after(inlines, i) {
+          match standalone_image_url_from_inline(inline) {
+            Some(url) => write_image_preview_block_slot(buf, url)
+            None => ()
+          }
+        }
+        at_line_start = false
+      }
+    }
+  }
+}
+
+fn is_line_end_after(inlines : Array[Inline], index : Int) -> Bool {
+  if index + 1 >= inlines.length() {
+    return true
+  }
+  match inlines[index + 1] {
+    Inline::SoftBreak(..) | Inline::HardBreak(..) => true
+    _ => false
+  }
+}
+
+///|
 fn render_inline_literal(
   inline : Inline,
   buf : StringBuilder,
@@ -141,12 +182,10 @@ fn render_inline_literal(
       buf.write_string("</a>")
     }
     Inline::Image(alt~, url~, title~, ..) => {
+      let meta = parse_image_preview_alt(alt)
       buf.write_string("<span class=\"md-image\" role=\"img\" aria-label=\"")
-      escape_html_attr_into(buf, alt)
+      escape_html_attr_into(buf, meta.alt)
       buf.write_string("\">")
-      if opts.image_preview {
-        write_image_preview_slot(buf, url, alt, title)
-      }
       write_marker(buf, "![")
       escape_html_into(buf, alt)
       let trailing = if title.is_empty() {
@@ -155,25 +194,31 @@ fn render_inline_literal(
         "](" + url + " \"" + title + "\")"
       }
       write_marker(buf, trailing)
+      if opts.image_preview {
+        write_image_preview_slot(buf, url, alt, title)
+      }
       buf.write_string("</span>")
     }
     Inline::RefImage(alt~, label~, ..) => {
       // Reference images don't carry an URL inline; the slot stays empty.
       // The consumer can resolve `data-md-image-ref` against their own
       // definition map and assign a `src` later.
+      let meta = parse_image_preview_alt(alt)
       buf.write_string("<span class=\"md-image\" role=\"img\" aria-label=\"")
-      escape_html_attr_into(buf, alt)
+      escape_html_attr_into(buf, meta.alt)
       buf.write_string("\">")
-      if opts.image_preview {
-        buf.write_string("<img class=\"md-image-preview\" data-md-image-ref=\"")
-        escape_html_attr_into(buf, label)
-        buf.write_string("\" alt=\"")
-        escape_html_attr_into(buf, alt)
-        buf.write_string("\" loading=\"lazy\" />")
-      }
       write_marker(buf, "![")
       escape_html_into(buf, alt)
       write_marker(buf, "][" + label + "]")
+      if opts.image_preview {
+        write_image_preview_slot_open(buf, meta)
+        buf.write_string("<img class=\"md-image-preview\" data-md-image-ref=\"")
+        escape_html_attr_into(buf, label)
+        buf.write_string("\" alt=\"")
+        escape_html_attr_into(buf, meta.alt)
+        buf.write_string("\" loading=\"lazy\" />")
+        buf.write_string("</span>")
+      }
       buf.write_string("</span>")
     }
     Inline::HtmlInline(html~, ..) => {

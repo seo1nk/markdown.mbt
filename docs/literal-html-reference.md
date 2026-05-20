@@ -244,15 +244,26 @@ so the alt text reaches assistive technology even when the visual
 </span>
 ```
 
-With `imagePreview=true` an `<img>` slot is added (no visible text, so
-the overlay invariant is preserved):
+With `imagePreview=true` a non-text preview slot is added after the
+source characters. Because the slot has no `textContent`, stripping HTML
+still returns the Markdown source text. If the alt text ends in `:wN`,
+that suffix is kept in the visible source text but removed from the real
+image `alt`, and the slot reserves `N` CSS pixels:
 
 ```html
 <span class="md-image" role="img" aria-label="alt">
-  <img class="md-image-preview" src="pic.png" alt="alt" title="caption" loading="lazy" />
   <span class="md-marker" aria-hidden="true">![</span>
-  alt
+  alt:w500
   <span class="md-marker" aria-hidden="true">](pic.png &quot;caption&quot;)</span>
+  <span
+    class="md-image-preview-slot"
+    data-md-noneditable="true"
+    contenteditable="false"
+    data-md-image-width="500"
+    style="--md-literal-image-width:500px"
+  >
+    <img class="md-image-preview" src="pic.png" alt="alt" title="caption" loading="lazy" />
+  </span>
 </span>
 ```
 
@@ -260,7 +271,26 @@ Reference images emit a slot without a resolved `src`, carrying
 `data-md-image-ref="<label>"` so the consumer can fill in the URL:
 
 ```html
-<img class="md-image-preview" data-md-image-ref="label" alt="alt" loading="lazy" />
+<span class="md-image" role="img" aria-label="alt">
+  <span class="md-marker" aria-hidden="true">![</span>
+  alt
+  <span class="md-marker" aria-hidden="true">][label]</span>
+  <span class="md-image-preview-slot" data-md-noneditable="true" contenteditable="false">
+    <img class="md-image-preview" data-md-image-ref="label" alt="alt" loading="lazy" />
+  </span>
+</span>
+```
+
+If a paragraph line consists only of a previewable image URL or path, the
+URL text is kept as source text and a block preview slot is appended:
+
+```html
+<p>
+  /images/diagram.svg
+  <span class="md-image-preview-slot md-image-preview-block" data-md-noneditable="true" contenteditable="false">
+    <img class="md-image-preview" src="/images/diagram.svg" alt="" loading="lazy" />
+  </span>
+</p>
 ```
 
 ### Tables (GFM)
@@ -394,8 +424,11 @@ selectors.
 | `--md-literal-quote` | `inherit` | `<blockquote>` foreground |
 | `--md-literal-marker` | `#8b949e` | `.md-marker` foreground |
 | `--md-literal-marker-opacity` | `1` | `.md-marker` opacity |
-| `--md-literal-image-max-height` | `1.5em` | `.md-image-preview` max height |
-| `--md-literal-image-gap` | `0.25em` | horizontal padding around `.md-image-preview` |
+| `--md-literal-image-width` | unset | `.md-image-preview-slot` reserved width, usually emitted from `:wN` |
+| `--md-literal-image-max-height` | `1.5em` | `.md-image-preview` max height when no `:wN` width is set |
+| `--md-literal-image-block-max-width` | `320px` | `.md-image-preview-block` image max width for standalone URL previews |
+| `--md-literal-image-block-max-height` | `320px` | `.md-image-preview-block` image max height for standalone URL previews |
+| `--md-literal-image-gap` | `0.25em` | horizontal padding around `.md-image-preview-slot` |
 | `--md-literal-image-border` | `rgba(110, 118, 129, 0.4)` | thin border around the image preview |
 | `--md-overlay-source-opacity` | `0.45` | source view opacity when stacked under the rendered view |
 
@@ -442,8 +475,11 @@ will be off by one marker run per inline element.
 <div class="md-literal with-image-preview" id="preview"></div>
 ```
 
-The slot becomes visible alongside the source characters. To shrink it
-to thumbnail height:
+The slot becomes visible alongside the source characters. `![alt:w500](x.png)`
+reserves a 500px atomic region; editor click handlers should ignore
+`[data-md-noneditable]`, and contenteditable hosts should honor
+`contenteditable="false"`, so the caret cannot be placed inside that
+image region. To shrink images without an explicit width to thumbnail height:
 
 ```css
 .with-image-preview {

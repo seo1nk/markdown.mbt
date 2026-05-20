@@ -128,18 +128,34 @@ block-level annotations are enough.
 
 ### Inline image preview (`imagePreview=true`)
 
-Each `<span class="md-image">` gets an `<img class="md-image-preview"
-src=… alt=… loading="lazy" />` slot alongside the `![alt](url)` source
-characters. Because the `<img>` has no `textContent`, the overlay
+Each `<span class="md-image">` gets a non-text
+`<span class="md-image-preview-slot">` containing a real
+`<img class="md-image-preview" src=… alt=… loading="lazy" />` alongside
+the `![alt](url)` source characters. The slot is appended after those
+source characters. Because it has no `textContent`, the text-content
 invariant is preserved whether the slot is rendered or not. The
 companion stylesheet
 [`@mizchi/markdown/editor/overlay.css`](../frontend/editor/overlay.css)
 hides the slot by default; opt in with `.with-image-preview` on a
 container.
 
+The alt suffix `:wN` reserves an atomic image region of `N` CSS pixels:
+`![diagram:w500](diagram.png)` keeps `diagram:w500` visible in the
+source text, emits `alt="diagram"` on the real image, and adds
+`data-md-image-width="500"` / `--md-literal-image-width:500px` on the
+slot. The slot also carries `contenteditable="false"`. Consumers can
+ignore `[data-md-noneditable]` in click-to-cursor handlers so the caret
+cannot be placed inside the image region.
+
 Reference images (`![alt][label]`) emit a `data-md-image-ref="label"`
 slot without a `src` so the consumer can fill the URL from their
 link-definition map at display time.
+
+If a source line consists only of a previewable image URL or path
+(`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.svg`, `.bmp`,
+`.ico`, or `data:image/...`), `imagePreview=true` appends a
+`md-image-preview-block` slot after that line. CSS displays it as a
+next-line preview while the URL text remains visible and unchanged.
 
 ### Partial DOM updates
 

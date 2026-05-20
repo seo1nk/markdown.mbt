@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Markdown literal renderer demo</title>
-    <link rel="stylesheet" href="../../frontend/editor/overlay.css" />
     <style>
       :root {
         color-scheme: dark;
@@ -28,7 +27,7 @@
         font-size: 14px;
         line-height: 1.6;
       }
-      h1 {
+      body > h1 {
         margin: 0 0 12px;
         font-family: ui-sans-serif, system-ui, sans-serif;
         font-size: 20px;
@@ -58,7 +57,7 @@
         min-height: 60vh;
         background: #161b22;
       }
-      .stage h2 {
+      .stage > h2 {
         margin: 0 0 12px;
         font-family: ui-sans-serif, system-ui, sans-serif;
         font-size: 12px;
@@ -85,10 +84,10 @@
         margin: 0;
         padding: 0;
         background: transparent;
-        color: var(--fg);
+        color: transparent;
+        caret-color: var(--fg);
         border: 0;
-        outline: 2px solid #1f6feb;
-        outline-offset: 4px;
+        outline: none;
         resize: none;
         font: inherit;
         white-space: pre-wrap;
@@ -99,22 +98,67 @@
        * both use the monospace + pre-wrap baseline from overlay.css. */
       body[data-mode="preview"] textarea.source-edit { display: none; }
       body[data-mode="edit"]    #rendered            { visibility: hidden; }
-      body[data-mode="edit"]    #source-view         { visibility: hidden; }
+      body[data-mode="edit"] textarea.source-edit::selection {
+        background: rgba(56, 139, 253, 0.32);
+      }
+      body:not(.overlay):not([data-mode="edit"]) #source-view { display: none; }
       /* Overlay mode (independent of edit / preview): stack the rendered
        * output on top of a faded source view to verify the alignment. */
-      body.overlay #source-view {
+      body.overlay #source-view,
+      body[data-mode="edit"] #source-view {
         position: absolute;
         inset: 0;
-        opacity: 0.45;
         pointer-events: none;
-        color: #79c0ff;
         white-space: pre-wrap;
-        font: inherit;
         margin: 0;
+      }
+      body.overlay #source-view {
+        opacity: 0.45;
+        color: #79c0ff;
+      }
+      body[data-mode="edit"] #source-view {
+        opacity: 1;
+        color: var(--fg);
+        visibility: visible;
       }
       body.overlay #rendered {
         position: absolute;
         inset: 0;
+      }
+      #source-view .md-src-marker,
+      #source-view .md-src-link-bracket,
+      #source-view .md-src-link-url,
+      #source-view .md-src-code-marker,
+      #source-view .md-src-quote-marker,
+      #source-view .md-src-list-marker,
+      #source-view .md-src-hr,
+      #source-view .md-src-html,
+      #source-view .md-src-escape {
+        color: #8b949e;
+      }
+      #source-view .md-src-heading,
+      #source-view .md-src-heading-marker,
+      #source-view .md-src-strong {
+        color: #f0f6fc;
+      }
+      #source-view .md-src-em {
+        color: #d2a8ff;
+      }
+      #source-view .md-src-del {
+        color: #8b949e;
+      }
+      #source-view .md-src-code {
+        color: #f0883e;
+      }
+      #source-view .md-src-link-text,
+      #source-view .md-src-image-alt {
+        color: #c9d1d9;
+      }
+      #source-view .md-src-url {
+        color: #58a6ff;
+      }
+      body.overlay:not([data-mode="edit"]) #source-view [class^="md-src-"] {
+        color: inherit;
       }
       .badge {
         font-family: ui-sans-serif, system-ui, sans-serif;
@@ -125,7 +169,7 @@
       .badge strong { color: var(--fg); }
     </style>
   </head>
-  <body data-mode="preview">
+  <body class="overlay" data-mode="preview">
     <h1>Markdown literal renderer — click-to-edit demo</h1>
     <p class="lede">
       The preview below is the output of
@@ -138,7 +182,7 @@
     <div class="toolbar">
       <span class="badge"><strong>mode:</strong> <span id="cursor-indicator">click to edit</span></span>
       <label>
-        <input type="checkbox" id="overlay-toggle" />
+        <input type="checkbox" id="overlay-toggle" checked />
         Overlay source + rendered (VRT alignment check)
       </label>
       <label>

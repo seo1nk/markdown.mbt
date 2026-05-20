@@ -103,7 +103,7 @@ test.describe("literal renderer accessibility (axe-core)", () => {
     await page.evaluate(() => {
       const ta = document.getElementById("source") as HTMLTextAreaElement;
       ta.value =
-        "Inline image: ![an example diagram](https://placehold.co/60x40/161b22/c9d1d9?text=A \"caption\").\n";
+        "Inline image: ![an example diagram](/images/literal-preview-a.svg \"caption\").\n";
       ta.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await page.locator("#image-preview-toggle").check();

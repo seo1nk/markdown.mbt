@@ -326,12 +326,26 @@ callers that manage their own state.
 
 ### Inline image preview (Phase 0)
 
-`toHtmlLiteral(source, { imagePreview: true })` adds an
-`<img class="md-image-preview" src=… alt=… title=… loading="lazy">` slot
+`toHtmlLiteral(source, { imagePreview: true })` adds a non-text
+`<span class="md-image-preview-slot">` containing a real
+`<img class="md-image-preview" src=… alt=… title=… loading="lazy">`
 inside every `<span class="md-image">` wrapper, alongside the
-`![alt](url)` source characters. The slot is a real `<img>` so the
-browser fetches and renders the image, but its `textContent` is empty so
-the overlay invariant continues to hold.
+`![alt](url)` source characters. The slot is appended after the Markdown
+source characters. It has empty `textContent`, so the text-content
+invariant continues to hold.
+
+Use an alt suffix to reserve width, Marp-style:
+
+```md
+![diagram:w500](/diagram.png)
+```
+
+The source text remains `diagram:w500`, but the real image `alt` becomes
+`diagram`, and the preview slot gets `data-md-image-width="500"` plus
+`--md-literal-image-width:500px`. The slot also carries
+`data-md-noneditable="true"` and `contenteditable="false"` so
+click-to-cursor handlers and contenteditable hosts can treat the image
+region as atomic and keep the caret out of it.
 
 ```ts
 import { toHtmlLiteral } from "@mizchi/markdown";
@@ -344,12 +358,12 @@ container.innerHTML = toHtmlLiteral(source, {
 container.classList.add("with-image-preview");
 ```
 
-`overlay.css` hides `.md-image-preview` by default. Opt in by adding
+`overlay.css` hides `.md-image-preview-slot` by default. Opt in by adding
 `.with-image-preview` to a container above the rendered output (or on
 the `.md-literal` element itself). CSS variables override the defaults:
 
 ```css
-.with-image-preview .md-image-preview {
+.with-image-preview {
   --md-literal-image-max-height: 2em;
   --md-literal-image-gap: 0.5em;
 }
@@ -358,6 +372,16 @@ the `.md-literal` element itself). CSS variables override the defaults:
 Reference images (`![alt][label]`) emit an empty-`src` slot carrying
 `data-md-image-ref="label"`; the consumer's JS resolves the URL from the
 document's link-definition map and assigns `src` later.
+
+When a line contains only a previewable image URL or path, for example:
+
+```md
+/images/diagram.svg
+```
+
+the renderer emits a `md-image-preview-block` slot after that line. The
+URL remains visible as source text, and `overlay.css` places the image
+preview on the following visual line.
 
 The runnable demo in `playground/literal/` has a toggle for the feature
 so the side-by-side behaviour can be inspected. Phase 1 (an editing
