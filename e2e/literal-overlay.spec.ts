@@ -231,6 +231,253 @@ test.describe("literal renderer overlay invariant", () => {
     );
   });
 
+  test("literal source view lazy-loads nested fenced code highlighting", async ({ page }) => {
+    const md = '```rs\nfn main() {\n    println!("hello, world!");\n}\n```\n';
+    await page.goto("/literal/");
+    await page.evaluate((source) => {
+      const ta = document.getElementById("source") as HTMLTextAreaElement;
+      ta.value = source;
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    }, md);
+
+    await page.locator("#rendered .md-fenced-code").first().click();
+    await expect(page.locator("body")).toHaveAttribute("data-mode", "edit");
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const sourceView = document.getElementById("source-view");
+          if (!sourceView) throw new Error("missing source view");
+          const colored = Array.from(
+            sourceView.querySelectorAll<HTMLElement>("span[style*='color']"),
+          );
+          return {
+            text: sourceView.textContent,
+            coloredText: colored.map((el) => el.textContent ?? "").join(""),
+          };
+        })
+      )
+      .toMatchObject({
+        text: md,
+        coloredText: expect.stringContaining("fn"),
+      });
+
+    await page.keyboard.press("Escape");
+    await expect(page.locator("body")).toHaveAttribute("data-mode", "preview");
+    const previewColors = await page.evaluate(() => {
+      const sourceView = document.getElementById("source-view");
+      const colored = sourceView?.querySelector<HTMLElement>(
+        "span[style*='color']",
+      );
+      if (!sourceView || !colored) throw new Error("missing highlighted source");
+      return {
+        sourceColor: getComputedStyle(sourceView).color,
+        coloredTokenColor: getComputedStyle(colored).color,
+      };
+    });
+    expect(previewColors.coloredTokenColor).toBe(previewColors.sourceColor);
+  });
+
+  test("literal controller accepts a custom lazy syntax highlighter adapter", async ({ page }) => {
+    await page.goto("/literal/");
+    await page.evaluate(async ({ literalModule, apiModule }) => {
+      const [{ createLiteralMarkdownEditor }, { toHtmlLiteral }] = await Promise
+        .all([
+          import(literalModule),
+          import(apiModule),
+        ]);
+      const root = document.createElement("div");
+      root.innerHTML = `
+        <div id="custom-host">
+          <div id="custom-rendered"></div>
+          <pre id="custom-source-view"></pre>
+          <textarea id="custom-source"></textarea>
+          <div id="custom-source-selection"></div>
+          <div id="custom-source-caret"></div>
+        </div>
+      `;
+      document.body.appendChild(root);
+      let loaded = false;
+      let loadCalls = 0;
+      const highlighter = (source: string) =>
+        `<pre><code><span class="line">` +
+        `<span style="color: rgb(255, 0, 0)">custom</span>` +
+        `<span style="color: rgb(0, 255, 0)">${source.slice(6)}</span>` +
+        `</span></code></pre>`;
+      const editor = createLiteralMarkdownEditor({
+        elements: {
+          host: document.getElementById("custom-host") as HTMLDivElement,
+          rendered: document.getElementById("custom-rendered") as HTMLElement,
+          source: document.getElementById("custom-source") as HTMLTextAreaElement,
+          sourceView: document.getElementById(
+            "custom-source-view",
+          ) as HTMLElement,
+          sourceSelection: document.getElementById(
+            "custom-source-selection",
+          ) as HTMLDivElement,
+          sourceCaret: document.getElementById(
+            "custom-source-caret",
+          ) as HTMLDivElement,
+          modeRoot: root,
+        },
+        initialSource: "```fixture\ncustom token\n```\n",
+        mode: "edit",
+        renderLiteral: (
+          source: string,
+          options: { positions: true; imagePreview: boolean },
+        ) => toHtmlLiteral(source, options),
+        syntaxHighlight: {
+          normalizeLanguage(raw: string) {
+            return raw === "fixture" ? raw : null;
+          },
+          getLoadedHighlighter(lang: string) {
+            return loaded && lang === "fixture" ? highlighter : null;
+          },
+          async loadHighlighter(lang: string) {
+            if (lang !== "fixture") return null;
+            loadCalls += 1;
+            loaded = true;
+            return highlighter;
+          },
+        },
+      });
+      (window as Window & {
+        __literalCustomHighlightState?: () => unknown;
+      }).__literalCustomHighlightState = () => {
+        const rendered = document.getElementById("custom-rendered")!;
+        const sourceView = document.getElementById("custom-source-view")!;
+        return {
+          loadCalls,
+          mode: editor.mode,
+          renderedText: rendered.textContent,
+          sourceText: sourceView.textContent,
+          renderedColored: rendered.querySelectorAll("span[style*='color']")
+            .length,
+          sourceColored: sourceView.querySelectorAll("span[style*='color']")
+            .length,
+        };
+      };
+    }, {
+      apiModule: `/@fs${process.cwd()}/js/api.js`,
+      literalModule:
+        `/@fs${process.cwd()}/frontend/editor/literal-markdown-editor.ts`,
+    });
+
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          (window as Window & {
+            __literalCustomHighlightState?: () => unknown;
+          }).__literalCustomHighlightState?.()
+        )
+      )
+      .toMatchObject({
+        loadCalls: 1,
+        mode: "edit",
+        renderedText: "```fixture\ncustom token\n```\n",
+        sourceText: "```fixture\ncustom token\n```\n",
+        renderedColored: 2,
+        sourceColored: 2,
+      });
+  });
+
+  test("literal controller accepts syntree token highlight results", async ({ page }) => {
+    await page.goto("/literal/");
+    await page.evaluate(async ({ literalModule, apiModule }) => {
+      const [{ createLiteralMarkdownEditor }, { toHtmlLiteral }] = await Promise
+        .all([
+          import(literalModule),
+          import(apiModule),
+        ]);
+      const root = document.createElement("div");
+      root.innerHTML = `
+        <div id="token-host">
+          <div id="token-rendered"></div>
+          <pre id="token-source-view"></pre>
+          <textarea id="token-source"></textarea>
+          <div id="token-source-selection"></div>
+          <div id="token-source-caret"></div>
+        </div>
+      `;
+      document.body.appendChild(root);
+      let loaded = false;
+      const tokenHighlighter = (source: string) => ({
+        tokens: [
+          { from: 0, to: 2, tag: "Keyword" },
+          { from: 3, to: source.length, tag: 10 },
+        ],
+      });
+      const editor = createLiteralMarkdownEditor({
+        elements: {
+          host: document.getElementById("token-host") as HTMLDivElement,
+          rendered: document.getElementById("token-rendered") as HTMLElement,
+          source: document.getElementById("token-source") as HTMLTextAreaElement,
+          sourceView: document.getElementById("token-source-view") as HTMLElement,
+          sourceSelection: document.getElementById(
+            "token-source-selection",
+          ) as HTMLDivElement,
+          sourceCaret: document.getElementById(
+            "token-source-caret",
+          ) as HTMLDivElement,
+          modeRoot: root,
+        },
+        initialSource: "```syntree\nfn token\n```\n",
+        mode: "edit",
+        renderLiteral: (
+          source: string,
+          options: { positions: true; imagePreview: boolean },
+        ) => toHtmlLiteral(source, options),
+        syntaxHighlight: {
+          normalizeLanguage(raw: string) {
+            return raw === "syntree" ? raw : null;
+          },
+          getLoadedHighlighter(lang: string) {
+            return loaded && lang === "syntree" ? tokenHighlighter : null;
+          },
+          async loadHighlighter(lang: string) {
+            if (lang !== "syntree") return null;
+            loaded = true;
+            return tokenHighlighter;
+          },
+        },
+      });
+      (window as Window & {
+        __literalTokenHighlightState?: () => unknown;
+      }).__literalTokenHighlightState = () => {
+        const rendered = document.getElementById("token-rendered")!;
+        const sourceView = document.getElementById("token-source-view")!;
+        return {
+          mode: editor.mode,
+          renderedText: rendered.textContent,
+          sourceText: sourceView.textContent,
+          renderedColored: rendered.querySelectorAll("span[style*='color']")
+            .length,
+          sourceColored: sourceView.querySelectorAll("span[style*='color']")
+            .length,
+        };
+      };
+    }, {
+      apiModule: `/@fs${process.cwd()}/js/api.js`,
+      literalModule:
+        `/@fs${process.cwd()}/frontend/editor/literal-markdown-editor.ts`,
+    });
+
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          (window as Window & {
+            __literalTokenHighlightState?: () => unknown;
+          }).__literalTokenHighlightState?.()
+        )
+      )
+      .toMatchObject({
+        mode: "edit",
+        renderedText: "```syntree\nfn token\n```\n",
+        sourceText: "```syntree\nfn token\n```\n",
+        renderedColored: 2,
+        sourceColored: 2,
+      });
+  });
+
   test("overlay screenshot: source view vs rendered view align", async ({ page }) => {
     await page.goto("/literal/");
     await page.evaluate((md) => {
@@ -1872,6 +2119,91 @@ test.describe("literal renderer overlay invariant", () => {
           })
       )
       .toBe("hidden");
+  });
+
+  test("image preview: standalone image markdown reserves a deterministic block height", async ({ page }) => {
+    await page.goto("/literal/");
+    await page.addStyleTag({
+      content: `
+        :root {
+          --md-literal-image-block-height: 144px;
+          --md-literal-image-block-max-height: 144px;
+        }
+      `,
+    });
+    await page.evaluate(() => {
+      const ta = document.getElementById("source") as HTMLTextAreaElement;
+      ta.value = "![standalone](/images/literal-preview-a.svg)\nnext line\n";
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    await page.locator("#overlay-toggle").check();
+    await page.locator("#image-preview-toggle").check();
+
+    await expect(page.locator("#rendered .md-image-preview-block").first())
+      .toBeVisible();
+    const layout = await page.evaluate(() => {
+      const renderedSlot = document.querySelector(
+        "#rendered .md-image-preview-block",
+      );
+      const sourceSlot = document.querySelector(
+        "#source-view .md-image-preview-block",
+      );
+      const renderedImage = renderedSlot?.querySelector("img");
+      const sourceImage = sourceSlot?.querySelector("img");
+      if (!renderedSlot || !sourceSlot || !renderedImage || !sourceImage) {
+        throw new Error("missing standalone image preview nodes");
+      }
+      const rectForText = (root: Element, needle: string) => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          const text = node.textContent ?? "";
+          const offset = text.indexOf(needle);
+          if (offset >= 0) {
+            const range = document.createRange();
+            range.setStart(node, offset);
+            range.setEnd(node, offset + 1);
+            return range.getBoundingClientRect();
+          }
+        }
+        throw new Error(`missing ${needle}`);
+      };
+      const renderedNext = rectForText(
+        document.getElementById("rendered")!,
+        "next line",
+      );
+      const sourceNext = rectForText(
+        document.getElementById("source-view")!,
+        "next line",
+      );
+      const renderedSlotRect = renderedSlot.getBoundingClientRect();
+      const sourceSlotRect = sourceSlot.getBoundingClientRect();
+      const renderedImageRect = renderedImage.getBoundingClientRect();
+      const sourceImageRect = sourceImage.getBoundingClientRect();
+      return {
+        renderedSlotHeight: renderedSlotRect.height,
+        sourceSlotHeight: sourceSlotRect.height,
+        renderedImageHeight: renderedImageRect.height,
+        sourceImageHeight: sourceImageRect.height,
+        renderedNextTop: renderedNext.top,
+        sourceNextTop: sourceNext.top,
+        renderedSlotBottom: renderedSlotRect.bottom,
+        sourceSlotBottom: sourceSlotRect.bottom,
+      };
+    });
+
+    expect(layout.renderedSlotHeight).toBeCloseTo(144, 0);
+    expect(layout.sourceSlotHeight).toBeCloseTo(144, 0);
+    expect(layout.renderedImageHeight).toBeCloseTo(144, 0);
+    expect(layout.sourceImageHeight).toBeCloseTo(144, 0);
+    expect(layout.renderedNextTop).toBeGreaterThanOrEqual(
+      layout.renderedSlotBottom - 1,
+    );
+    expect(layout.sourceNextTop).toBeGreaterThanOrEqual(
+      layout.sourceSlotBottom - 1,
+    );
+    expect(Math.abs(layout.renderedNextTop - layout.sourceNextTop))
+      .toBeLessThan(1);
   });
 
   test("image preview: bare image URL line does not emit a block preview", async ({ page }) => {

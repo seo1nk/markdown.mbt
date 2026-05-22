@@ -281,14 +281,15 @@ Reference images emit a slot without a resolved `src`, carrying
 </span>
 ```
 
-If a paragraph line consists only of a previewable image URL or path, the
-URL text is kept as source text and a block preview slot is appended:
+If a paragraph line consists only of Markdown image syntax with a
+previewable URL or path, the Markdown source is kept as text and a block
+preview slot is appended:
 
 ```html
 <p>
-  /images/diagram.svg
+  ![diagram](/images/diagram.svg)
   <span class="md-image-preview-slot md-image-preview-block" data-md-noneditable="true" contenteditable="false">
-    <img class="md-image-preview" src="/images/diagram.svg" alt="" loading="lazy" />
+    <img class="md-image-preview" src="/images/diagram.svg" alt="diagram" loading="lazy" />
   </span>
 </p>
 ```
@@ -426,8 +427,9 @@ selectors.
 | `--md-literal-marker-opacity` | `1` | `.md-marker` opacity |
 | `--md-literal-image-width` | unset | `.md-image-preview-slot` reserved width, usually emitted from `:wN` |
 | `--md-literal-image-max-height` | `1.5em` | `.md-image-preview` max height when no `:wN` width is set |
-| `--md-literal-image-block-max-width` | `320px` | `.md-image-preview-block` image max width for standalone URL previews |
-| `--md-literal-image-block-max-height` | `320px` | `.md-image-preview-block` image max height for standalone URL previews |
+| `--md-literal-image-block-max-width` | `320px` | `.md-image-preview-block` image max width for standalone Markdown image previews |
+| `--md-literal-image-block-height` | `320px` | `.md-image-preview-block` reserved height for standalone Markdown image previews |
+| `--md-literal-image-block-max-height` | `320px` | fallback reserved height for standalone Markdown image previews |
 | `--md-literal-image-gap` | `0.25em` | horizontal padding around `.md-image-preview-slot` |
 | `--md-literal-image-border` | `rgba(110, 118, 129, 0.4)` | thin border around the image preview |
 | `--md-overlay-source-opacity` | `0.45` | source view opacity when stacked under the rendered view |

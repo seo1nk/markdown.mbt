@@ -7,7 +7,59 @@
  * overlays, and IME anchor correction.
  */
 import { LiteralEditor } from "./literal-editor.js";
-import { getLoadedHighlighter, loadHighlighter, normalizeHighlightLanguage, } from "../highlight/index.js";
+import { getLoadedHighlighter as getDefaultLoadedHighlighter, loadHighlighter as loadDefaultHighlighter, normalizeHighlightLanguage as normalizeDefaultHighlightLanguage, } from "../highlight/index.js";
+const SYNTREE_TAG_KEYS = [
+    "keyword",
+    "operator",
+    "punctuation",
+    "string",
+    "number",
+    "regexp",
+    "bool",
+    "null",
+    "property",
+    "variable",
+    "function",
+    "type",
+    "class",
+    "private",
+    "meta",
+    "bracket",
+    "brace",
+    "paren",
+    "comment",
+    "docComment",
+    "tag",
+    "tagBracket",
+    "invalid",
+    "none",
+];
+const DEFAULT_SYNTREE_HIGHLIGHT_COLORS = {
+    keyword: "#ff7b72",
+    operator: "#ff7b72",
+    punctuation: "#c9d1d9",
+    string: "#a5d6ff",
+    number: "#79c0ff",
+    regexp: "#7ee787",
+    bool: "#79c0ff",
+    null: "#79c0ff",
+    property: "#7ee787",
+    variable: "#c9d1d9",
+    function: "#d2a8ff",
+    type: "#ffa657",
+    class: "#ffa657",
+    private: "#c9d1d9",
+    meta: "#d2a8ff",
+    bracket: "#c9d1d9",
+    brace: "#c9d1d9",
+    paren: "#c9d1d9",
+    comment: "#8b949e",
+    docComment: "#8b949e",
+    tag: "#7ee787",
+    tagBracket: "#c9d1d9",
+    invalid: "#f85149",
+    none: "#c9d1d9",
+};
 export function createLiteralMarkdownEditor(options) {
     const sourceEl = options.elements.source;
     const renderedEl = options.elements.rendered;
@@ -26,7 +78,9 @@ export function createLiteralMarkdownEditor(options) {
     sourceCaretEl.classList.add("md-literal-source-caret");
     sourceEl.value = initialSource;
     let imagePreviewOn = options.imagePreview ?? false;
-    const syntaxHighlightOn = options.syntaxHighlight ?? true;
+    const syntaxHighlightConfig = options.syntaxHighlight ?? true;
+    const syntaxHighlightOn = syntaxHighlightConfig !== false;
+    const syntaxHighlightAdapter = typeof syntaxHighlightConfig === "object" ? syntaxHighlightConfig : {};
     let currentMode = options.mode ?? "preview";
     let measureCanvas = null;
     let sourceViewDragAnchor = null;
@@ -371,7 +425,7 @@ export function createLiteralMarkdownEditor(options) {
             const state = highlightedCodeState.get(codeEl);
             if (state?.lang === lang && state.source === source)
                 continue;
-            const highlighter = getLoadedHighlighter(lang);
+            const highlighter = getLiteralCodeHighlighter(lang);
             if (!highlighter) {
                 requestLiteralCodeHighlighter(lang);
                 continue;
@@ -387,11 +441,12 @@ export function createLiteralMarkdownEditor(options) {
         if (pendingCodeHighlighters.has(lang))
             return;
         pendingCodeHighlighters.add(lang);
-        void loadHighlighter(lang).then((highlighter) => {
+        void loadLiteralCodeHighlighter(lang).then((highlighter) => {
             pendingCodeHighlighters.delete(lang);
             if (destroyed || !highlighter)
                 return;
             applyLiteralSyntaxHighlighting();
+            sourceViewEditor.rerender();
             syncLiteralLayout();
             refreshInvariant(sourceEl.value);
         }).catch((error) => {
@@ -404,11 +459,28 @@ export function createLiteralMarkdownEditor(options) {
             if (!className.startsWith("language-"))
                 continue;
             const raw = className.slice("language-".length);
-            const normalized = normalizeHighlightLanguage(raw);
+            const normalized = normalizeLiteralCodeLanguage(raw);
             if (normalized)
                 return normalized;
         }
         return null;
+    }
+    function normalizeLiteralCodeLanguage(raw) {
+        const normalized = (syntaxHighlightAdapter.normalizeLanguage ??
+            normalizeDefaultHighlightLanguage)(raw);
+        if (typeof normalized !== "string")
+            return null;
+        const trimmed = normalized.trim();
+        return trimmed.length > 0 ? trimmed : null;
+    }
+    function getLiteralCodeHighlighter(lang) {
+        const getLoaded = syntaxHighlightAdapter.getLoadedHighlighter ??
+            getDefaultLoadedHighlighter;
+        return getLoaded(lang);
+    }
+    function loadLiteralCodeHighlighter(lang) {
+        const load = syntaxHighlightAdapter.loadHighlighter ?? loadDefaultHighlighter;
+        return load(lang);
     }
     function highlightedCodeInnerHtml(source, highlighter) {
         const trailingNewlines = source.match(/\n+$/)?.[0] ?? "";
@@ -417,38 +489,241 @@ export function createLiteralMarkdownEditor(options) {
             : source;
         if (body.length === 0)
             return null;
-        const highlighted = highlighter(body);
+        const highlighted = highlightResultToHtml(body, highlighter(body));
+        if (highlighted == null)
+            return null;
         const template = document.createElement("template");
         template.innerHTML = highlighted;
         const code = template.content.querySelector("code");
-        if (!code)
-            return null;
-        const candidate = code.innerHTML + trailingNewlines;
+        const candidateBody = code ? code.innerHTML : highlighted;
+        const candidate = candidateBody + trailingNewlines;
         return stripHtml(candidate) === source ? candidate : null;
     }
-    function renderHighlightedSourceView(src) {
-        let html = "";
+    function highlightResultToHtml(source, result) {
+        if (typeof result === "string")
+            return result;
+        if (Array.isArray(result)) {
+            return syntreeTokensToHighlightHtml(source, result);
+        }
+        if (result == null || typeof result !== "object")
+            return null;
+        if ("html" in result && typeof result.html === "string") {
+            return result.html;
+        }
+        if ("tokens" in result && Array.isArray(result.tokens)) {
+            return syntreeTokensToHighlightHtml(source, result.tokens, result.theme);
+        }
+        return null;
+    }
+    function syntreeTokensToHighlightHtml(source, tokens, theme = {}) {
+        const chars = Array.from(source);
+        const normalizedTokens = tokens
+            .filter((token) => Number.isInteger(token.from) && Number.isInteger(token.to) &&
+            token.to > token.from)
+            .map((token) => ({
+            ...token,
+            from: Math.max(0, Math.min(chars.length, token.from)),
+            to: Math.max(0, Math.min(chars.length, token.to)),
+        }))
+            .filter((token) => token.to > token.from)
+            .sort((a, b) => a.from - b.from || a.to - b.to);
+        const className = theme.name ? ` ${escapeHtmlAttr(theme.name)}` : "";
+        const background = theme.background ?? "#0d1117";
+        const foreground = theme.foreground ?? "#c9d1d9";
+        let html = `<pre class="highlight${className}" style="background-color: ${escapeHtmlAttr(background)}; color: ${escapeHtmlAttr(foreground)}"><code>`;
         let lineStart = 0;
-        while (lineStart <= src.length) {
-            const newline = src.indexOf("\n", lineStart);
-            const lineEnd = newline < 0 ? src.length : newline;
-            const line = src.slice(lineStart, lineEnd);
-            const image = standaloneImageSyntaxFromLine(line);
-            if (image != null) {
-                html += highlightMarkdownSourceLine(line, false);
-                if (imagePreviewOn) {
-                    html += renderSourceStandaloneImagePreviewSlot(image);
-                }
+        for (let pos = 0; pos <= chars.length; pos++) {
+            const isEnd = pos === chars.length;
+            const isNewline = !isEnd && chars[pos] === "\n";
+            if (!isEnd && !isNewline)
+                continue;
+            html += `<span class="line">${renderSyntreeTokenRange(chars, lineStart, pos, normalizedTokens, theme, foreground)}</span>`;
+            if (isNewline) {
+                html += "\n";
+                lineStart = pos + 1;
             }
-            else {
-                html += renderHighlightedSourceInlineLine(line);
-            }
-            if (newline < 0)
+        }
+        html += "</code></pre>";
+        return html;
+    }
+    function renderSyntreeTokenRange(chars, start, end, tokens, theme, foreground) {
+        let html = "";
+        let pos = start;
+        for (const token of tokens) {
+            if (token.to <= start)
+                continue;
+            if (token.from >= end)
                 break;
-            html += "\n";
-            lineStart = newline + 1;
+            const tokenStart = Math.max(pos, token.from, start);
+            const tokenEnd = Math.min(token.to, end);
+            if (tokenEnd <= tokenStart)
+                continue;
+            if (tokenStart > pos) {
+                html += escapeHtml(chars.slice(pos, tokenStart).join(""));
+            }
+            const text = escapeHtml(chars.slice(tokenStart, tokenEnd).join(""));
+            const color = colorForSyntreeToken(token, theme, foreground);
+            const className = token.className?.trim();
+            const attrs = [];
+            if (className)
+                attrs.push(`class="${escapeHtmlAttr(className)}"`);
+            if (color)
+                attrs.push(`style="color: ${escapeHtmlAttr(color)}"`);
+            html += attrs.length > 0
+                ? `<span ${attrs.join(" ")}>${text}</span>`
+                : text;
+            pos = tokenEnd;
+        }
+        if (pos < end) {
+            html += escapeHtml(chars.slice(pos, end).join(""));
         }
         return html;
+    }
+    function colorForSyntreeToken(token, theme, foreground) {
+        if (token.color)
+            return token.color;
+        const themeColor = theme.getColor?.(token.tag, token);
+        if (themeColor)
+            return themeColor;
+        const key = syntreeTagKey(token.tag);
+        return theme.colors?.[key] ?? DEFAULT_SYNTREE_HIGHLIGHT_COLORS[key] ??
+            foreground;
+    }
+    function syntreeTagKey(tag) {
+        if (typeof tag === "number") {
+            return SYNTREE_TAG_KEYS[tag] ?? "none";
+        }
+        const raw = tag.replace(/^hl[-_]/i, "");
+        const compact = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
+        switch (compact) {
+            case "propertyname":
+            case "property":
+                return "property";
+            case "variablename":
+            case "variable":
+                return "variable";
+            case "functionname":
+            case "function":
+                return "function";
+            case "typename":
+            case "type":
+                return "type";
+            case "classname":
+            case "class":
+                return "class";
+            case "privatename":
+            case "private":
+                return "private";
+            case "doccomment":
+                return "docComment";
+            case "tagname":
+            case "tag":
+                return "tag";
+            case "tagbracket":
+                return "tagBracket";
+            default:
+                return compact in DEFAULT_SYNTREE_HIGHLIGHT_COLORS ? compact : "none";
+        }
+    }
+    function renderHighlightedSourceView(src) {
+        const lines = src.split("\n");
+        const renderedLines = [];
+        let fence = null;
+        let codeLines = [];
+        const flushCodeLines = () => {
+            if (fence == null)
+                return;
+            renderedLines.push(...highlightSourceCodeBlockLines(codeLines, fence.lang));
+            codeLines = [];
+        };
+        for (const line of lines) {
+            if (fence != null) {
+                if (isClosingFenceLine(line, fence)) {
+                    flushCodeLines();
+                    renderedLines.push(highlightMarkdownSourceLine(line, false));
+                    fence = null;
+                }
+                else {
+                    codeLines.push(line);
+                }
+                continue;
+            }
+            const openingFence = parseOpeningFenceLine(line);
+            if (openingFence != null) {
+                renderedLines.push(highlightMarkdownSourceLine(line, false));
+                fence = openingFence;
+                codeLines = [];
+                continue;
+            }
+            const image = standaloneImageSyntaxFromLine(line);
+            if (image != null) {
+                let lineHtml = highlightMarkdownSourceLine(line, false);
+                if (imagePreviewOn) {
+                    lineHtml += renderSourceStandaloneImagePreviewSlot(image);
+                }
+                renderedLines.push(lineHtml);
+            }
+            else {
+                renderedLines.push(renderHighlightedSourceInlineLine(line));
+            }
+        }
+        flushCodeLines();
+        return renderedLines.join("\n");
+    }
+    function parseOpeningFenceLine(line) {
+        const match = /^[ \t]{0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+        if (!match)
+            return null;
+        const fence = match[1];
+        const info = match[2] ?? "";
+        const marker = fence[0];
+        return {
+            marker,
+            fenceLen: fence.length,
+            lang: languageFromFenceInfo(info),
+        };
+    }
+    function isClosingFenceLine(line, fence) {
+        const match = /^[ \t]{0,3}(`{3,}|~{3,})[ \t]*$/.exec(line);
+        if (!match)
+            return false;
+        const marker = match[1][0];
+        return marker === fence.marker && match[1].length >= fence.fenceLen;
+    }
+    function languageFromFenceInfo(info) {
+        const first = info.trim().split(/\s+/, 1)[0] ?? "";
+        const lang = first.split(":", 1)[0] ?? first;
+        return normalizeLiteralCodeLanguage(lang);
+    }
+    function highlightSourceCodeBlockLines(lines, lang) {
+        if (!syntaxHighlightOn || lang == null) {
+            return lines.map(escapeHtml);
+        }
+        const highlighter = getLiteralCodeHighlighter(lang);
+        if (!highlighter) {
+            requestLiteralCodeHighlighter(lang);
+            return lines.map(escapeHtml);
+        }
+        return highlightedCodeBlockLines(lines, highlighter) ??
+            lines.map(escapeHtml);
+    }
+    function highlightedCodeBlockLines(lines, highlighter) {
+        if (lines.length === 0)
+            return [];
+        const source = lines.join("\n");
+        if (source.length === 0)
+            return lines.map(escapeHtml);
+        const highlighted = highlightedCodeInnerHtml(source, highlighter);
+        if (highlighted == null)
+            return null;
+        const template = document.createElement("template");
+        template.innerHTML = highlighted;
+        const lineSpans = Array.from(template.content.querySelectorAll("span.line"));
+        if (lineSpans.length === lines.length) {
+            return lineSpans.map((line) => line.innerHTML);
+        }
+        const split = highlighted.split("\n");
+        return split.length === lines.length ? split : null;
     }
     function renderHighlightedSourceInlineLine(src, includeImageSlots = true) {
         const prefixed = splitMarkdownLinePrefix(src);

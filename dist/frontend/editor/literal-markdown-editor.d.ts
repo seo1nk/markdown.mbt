@@ -13,6 +13,35 @@ export interface LiteralMarkdownRenderOptions {
     imagePreview: boolean;
 }
 export type LiteralMarkdownRenderer = (source: string, options: LiteralMarkdownRenderOptions) => string;
+export type LiteralMarkdownHighlightTag = number | string;
+export interface LiteralMarkdownSyntreeHighlightToken {
+    from: number;
+    to: number;
+    tag: LiteralMarkdownHighlightTag;
+    color?: string;
+    className?: string;
+}
+export interface LiteralMarkdownHighlightTheme {
+    name?: string;
+    background?: string;
+    foreground?: string;
+    colors?: Partial<Record<string, string>>;
+    getColor?: (tag: LiteralMarkdownHighlightTag, token: LiteralMarkdownSyntreeHighlightToken) => string | null | undefined;
+}
+export interface LiteralMarkdownSyntreeHighlightResult {
+    tokens: readonly LiteralMarkdownSyntreeHighlightToken[];
+    theme?: LiteralMarkdownHighlightTheme;
+}
+export type LiteralMarkdownHighlightResult = string | {
+    html: string;
+} | LiteralMarkdownSyntreeHighlightResult | readonly LiteralMarkdownSyntreeHighlightToken[];
+export type LiteralMarkdownCodeHighlighter = (source: string) => LiteralMarkdownHighlightResult;
+export interface LiteralMarkdownSyntaxHighlightAdapter {
+    normalizeLanguage?: (raw: string) => string | null;
+    getLoadedHighlighter?: (language: string) => LiteralMarkdownCodeHighlighter | null;
+    loadHighlighter?: (language: string) => Promise<LiteralMarkdownCodeHighlighter | null>;
+}
+export type LiteralMarkdownSyntaxHighlightOptions = boolean | LiteralMarkdownSyntaxHighlightAdapter;
 export interface LiteralMarkdownEditorElements {
     host: HTMLDivElement;
     rendered: HTMLElement;
@@ -38,7 +67,7 @@ export interface LiteralMarkdownEditorOptions {
     initialSource?: string;
     mode?: LiteralMarkdownMode;
     imagePreview?: boolean;
-    syntaxHighlight?: boolean;
+    syntaxHighlight?: LiteralMarkdownSyntaxHighlightOptions;
     imagePreviewClass?: string;
     onPatchStats?: (stats: PatchStats) => void;
     onInvariant?: (state: LiteralMarkdownInvariantState) => void;

@@ -362,12 +362,61 @@ The returned handle exposes `setSource`, `setMode`, `setImagePreview`,
 matching baseline styles, while apps remain free to replace the shell layout
 or status UI.
 
-By default, fenced code blocks in the rendered literal layer reuse the same
-lazy highlighter loader as `SyntaxHighlightEditor`. The first render stays
-plain text if a language chunk is not loaded yet; once the chunk arrives, the
-controller patches only the `<code>` contents with token spans and keeps
-`textContent` byte-for-byte identical to the literal source. Pass
-`syntaxHighlight: false` to `createLiteralMarkdownEditor` to disable this.
+By default, fenced code blocks in both the rendered literal layer and the
+highlighted source view reuse the same lazy highlighter loader as
+`SyntaxHighlightEditor`. The first render stays plain text if a language
+chunk is not loaded yet; once the chunk arrives, the controller patches only
+the affected code contents with token spans and keeps `textContent`
+byte-for-byte identical to the literal source. Pass `syntaxHighlight: false`
+to `createLiteralMarkdownEditor` to disable this.
+
+Library consumers can also pass a custom lazy adapter. This is useful when
+the host app already owns its syntax-highlighting chunks, wants to support
+additional languages, or needs a different bundler boundary:
+
+```ts
+createLiteralMarkdownEditor({
+  // ...
+  syntaxHighlight: {
+    normalizeLanguage(raw) {
+      return raw === "rs" ? "rust" : raw;
+    },
+    getLoadedHighlighter(language) {
+      return highlighterCache.get(language) ?? null;
+    },
+    async loadHighlighter(language) {
+      const highlighter = await loadHostLanguageChunk(language);
+      highlighterCache.set(language, highlighter);
+      return highlighter;
+    },
+  },
+});
+```
+
+The highlighter receives the code text and may return either full
+`<pre><code>...</code></pre>` HTML, just the `<code>` inner HTML, or syntree
+tokens:
+
+```ts
+import type {
+  LiteralMarkdownSyntreeHighlightToken,
+} from "@mizchi/markdown/editor/literal";
+
+const rustHighlighter = (source: string) => {
+  const tokens: LiteralMarkdownSyntreeHighlightToken[] =
+    rustSyntreeHighlight(source);
+  return { tokens };
+};
+```
+
+The token shape is `{ from: number; to: number; tag: number | string }`,
+matching syntree's `HighlightToken` range plus `HighlightTag`. MoonBit
+syntree enum tags arrive in JS as numbers; string tags such as `"Keyword"`
+or `"FunctionName"` are also accepted. Optional `color`, `className`, or
+`theme` fields can override the built-in GitHub dark mapping.
+
+The controller only accepts the generated result when stripping tags gives
+back the exact source text, preserving the literal invariant.
 
 Use `@mizchi/markdown/editor/literal` when embedding only the literal
 controller. That subpath exports only framework-agnostic DOM helpers and does
@@ -431,7 +480,9 @@ for example:
 
 the renderer emits a `md-image-preview-block` slot after that line. The
 Markdown image source remains visible as text, and `overlay.css` places
-the image preview on the following visual line.
+the image preview on the following visual line. Standalone previews reserve
+`--md-literal-image-block-height` (`320px` by default) so the following text
+does not depend on the image's intrinsic height.
 
 The runnable demo in `playground/literal/` has a toggle for the feature
 so the side-by-side behaviour can be inspected. Phase 1 (an editing

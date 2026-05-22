@@ -151,11 +151,14 @@ Reference images (`![alt][label]`) emit a `data-md-image-ref="label"`
 slot without a `src` so the consumer can fill the URL from their
 link-definition map at display time.
 
-If a source line consists only of a previewable image URL or path
-(`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.svg`, `.bmp`,
-`.ico`, or `data:image/...`), `imagePreview=true` appends a
+If a source line consists only of Markdown image syntax whose URL is
+previewable (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.svg`,
+`.bmp`, `.ico`, or `data:image/...`), `imagePreview=true` appends a
 `md-image-preview-block` slot after that line. CSS displays it as a
-next-line preview while the URL text remains visible and unchanged.
+next-line preview while the Markdown source remains visible and unchanged.
+The block slot reserves a deterministic height with
+`--md-literal-image-block-height` so mixed image aspect ratios do not change
+the text baseline.
 
 ### Partial DOM updates
 
@@ -200,6 +203,7 @@ provides:
 CSS variables let consumers override colors and sizes:
 `--md-literal-text`, `--md-literal-heading`, `--md-literal-marker`,
 `--md-literal-link`, `--md-literal-code`, `--md-literal-image-max-height`,
+`--md-literal-image-block-height`,
 …
 
 ## Accessibility

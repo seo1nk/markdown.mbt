@@ -165,15 +165,22 @@
 .with-image-preview .md-literal .md-image-preview-block,
 .md-literal.with-image-preview .md-image-preview-block {
   display: block;
-  width: fit-content;
+  width: var(--md-literal-image-width, fit-content);
   max-width: 100%;
+  height: var(
+    --md-literal-image-block-height,
+    var(--md-literal-image-block-max-height, 320px)
+  );
   margin: 0;
 }
 
 .with-image-preview .md-literal .md-image-preview-block .md-image-preview,
 .md-literal.with-image-preview .md-image-preview-block .md-image-preview {
   max-width: min(100%, var(--md-literal-image-block-max-width, 320px));
-  max-height: var(--md-literal-image-block-max-height, 320px);
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: left top;
 }
 
 .with-image-preview .md-literal .md-image-preview-spacer .md-image-preview,
@@ -360,6 +367,13 @@
   .md-literal-source-view
   [class^="md-src-"] {
   color: inherit;
+}
+
+.overlay:not([data-mode="edit"]) .md-literal-source-view span[style*="color"],
+.md-literal-editor.md-overlay:not([data-mode="edit"])
+  .md-literal-source-view
+  span[style*="color"] {
+  color: inherit !important;
 }
 
 /* ---- Overlay helpers. Apply `.md-overlay` to the wrapper that stacks
