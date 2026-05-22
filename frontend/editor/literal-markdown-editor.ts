@@ -8,6 +8,13 @@
  */
 
 import { LiteralEditor, type PatchStats } from "./literal-editor.js";
+import {
+  type CodeHighlighter,
+  getLoadedHighlighter,
+  type HighlightLanguage,
+  loadHighlighter,
+  normalizeHighlightLanguage,
+} from "../highlight/index.js";
 
 export type LiteralMarkdownMode = "preview" | "edit";
 
@@ -49,6 +56,7 @@ export interface LiteralMarkdownEditorOptions {
   initialSource?: string;
   mode?: LiteralMarkdownMode;
   imagePreview?: boolean;
+  syntaxHighlight?: boolean;
   imagePreviewClass?: string;
   onPatchStats?: (stats: PatchStats) => void;
   onInvariant?: (state: LiteralMarkdownInvariantState) => void;
@@ -90,10 +98,17 @@ export function createLiteralMarkdownEditor(
   sourceEl.value = initialSource;
 
   let imagePreviewOn = options.imagePreview ?? false;
+  const syntaxHighlightOn = options.syntaxHighlight ?? true;
   let currentMode: LiteralMarkdownMode = options.mode ?? "preview";
   let measureCanvas: HTMLCanvasElement | null = null;
   let sourceViewDragAnchor: number | null = null;
   let isComposing = false;
+  let destroyed = false;
+  const pendingCodeHighlighters = new Set<HighlightLanguage>();
+  const highlightedCodeState = new WeakMap<
+    HTMLElement,
+    { lang: HighlightLanguage; source: string }
+  >();
 
   const renderLiteral = (src: string): string =>
     options.renderLiteral(src, {
@@ -122,6 +137,7 @@ export function createLiteralMarkdownEditor(
 
   function update(src: string): PatchStats {
     const stats = editor.setSource(src);
+    applyLiteralSyntaxHighlighting();
     renderSourceView(src);
     syncLiteralLayout();
     options.onPatchStats?.(stats);
@@ -490,6 +506,76 @@ export function createLiteralMarkdownEditor(
     const tmp = document.createElement("template");
     tmp.innerHTML = html;
     return tmp.content.textContent ?? "";
+  }
+
+  function applyLiteralSyntaxHighlighting(): void {
+    if (!syntaxHighlightOn) return;
+    const codeElements = renderedEl.querySelectorAll<HTMLElement>(
+      "pre code[class*='language-']",
+    );
+    for (const codeEl of codeElements) {
+      const lang = languageFromCodeElement(codeEl);
+      if (lang == null) continue;
+      const source = codeEl.textContent ?? "";
+      const state = highlightedCodeState.get(codeEl);
+      if (state?.lang === lang && state.source === source) continue;
+
+      const highlighter = getLoadedHighlighter(lang);
+      if (!highlighter) {
+        requestLiteralCodeHighlighter(lang);
+        continue;
+      }
+
+      const highlighted = highlightedCodeInnerHtml(source, highlighter);
+      if (highlighted == null) continue;
+      codeEl.innerHTML = highlighted;
+      highlightedCodeState.set(codeEl, { lang, source });
+    }
+  }
+
+  function requestLiteralCodeHighlighter(lang: HighlightLanguage): void {
+    if (pendingCodeHighlighters.has(lang)) return;
+    pendingCodeHighlighters.add(lang);
+    void loadHighlighter(lang).then((highlighter) => {
+      pendingCodeHighlighters.delete(lang);
+      if (destroyed || !highlighter) return;
+      applyLiteralSyntaxHighlighting();
+      syncLiteralLayout();
+      refreshInvariant(sourceEl.value);
+    }).catch((error) => {
+      pendingCodeHighlighters.delete(lang);
+      console.error("Literal code highlighter load error:", error);
+    });
+  }
+
+  function languageFromCodeElement(
+    codeEl: HTMLElement,
+  ): HighlightLanguage | null {
+    for (const className of Array.from(codeEl.classList)) {
+      if (!className.startsWith("language-")) continue;
+      const raw = className.slice("language-".length);
+      const normalized = normalizeHighlightLanguage(raw);
+      if (normalized) return normalized;
+    }
+    return null;
+  }
+
+  function highlightedCodeInnerHtml(
+    source: string,
+    highlighter: CodeHighlighter,
+  ): string | null {
+    const trailingNewlines = source.match(/\n+$/)?.[0] ?? "";
+    const body = trailingNewlines.length > 0
+      ? source.slice(0, source.length - trailingNewlines.length)
+      : source;
+    if (body.length === 0) return null;
+    const highlighted = highlighter(body);
+    const template = document.createElement("template");
+    template.innerHTML = highlighted;
+    const code = template.content.querySelector("code");
+    if (!code) return null;
+    const candidate = code.innerHTML + trailingNewlines;
+    return stripHtml(candidate) === source ? candidate : null;
   }
 
   interface SourceImageSyntax {
@@ -1128,6 +1214,7 @@ export function createLiteralMarkdownEditor(
     modeRoot.classList.toggle(imagePreviewClass, imagePreviewOn);
     sourceViewEditor.rerender();
     editor.rerender();
+    applyLiteralSyntaxHighlighting();
     queueLiteralLayoutSync();
     syncSourceCaret();
     refreshInvariant(sourceEl.value);
@@ -1313,6 +1400,7 @@ export function createLiteralMarkdownEditor(
     syncLayout: queueLiteralLayoutSync,
     refreshInvariant: () => refreshInvariant(sourceEl.value),
     destroy() {
+      destroyed = true;
       for (const dispose of disposers.splice(0).reverse()) {
         dispose();
       }

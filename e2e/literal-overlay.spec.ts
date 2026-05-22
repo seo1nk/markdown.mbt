@@ -199,6 +199,38 @@ test.describe("literal renderer overlay invariant", () => {
     }
   });
 
+  test("literal code blocks lazy-load syntax highlighting without changing visible text", async ({ page }) => {
+    const md = '```rust\nfn main() {\n    println!("hi");\n}\n```\n';
+    const expectedCode = 'fn main() {\n    println!("hi");\n}\n';
+    await page.goto("/literal/");
+    await page.evaluate((source) => {
+      const ta = document.getElementById("source") as HTMLTextAreaElement;
+      ta.value = source;
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    }, md);
+
+    const code = page.locator("#rendered pre code.language-rust").first();
+    await expect(code).toHaveText(expectedCode);
+    await expect
+      .poll(() =>
+        code.evaluate((el) => ({
+          hasLineSpan: el.querySelectorAll("span.line").length > 0,
+          hasColoredToken:
+            el.querySelectorAll("span[style*='color']").length > 0,
+          text: el.textContent,
+        }))
+      )
+      .toMatchObject({
+        hasLineSpan: true,
+        hasColoredToken: true,
+        text: expectedCode,
+      });
+
+    await expect(page.locator("#invariant-state")).toHaveText(
+      /literal DOM matches fresh render/,
+    );
+  });
+
   test("overlay screenshot: source view vs rendered view align", async ({ page }) => {
     await page.goto("/literal/");
     await page.evaluate((md) => {

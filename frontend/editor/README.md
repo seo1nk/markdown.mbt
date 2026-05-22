@@ -362,6 +362,13 @@ The returned handle exposes `setSource`, `setMode`, `setImagePreview`,
 matching baseline styles, while apps remain free to replace the shell layout
 or status UI.
 
+By default, fenced code blocks in the rendered literal layer reuse the same
+lazy highlighter loader as `SyntaxHighlightEditor`. The first render stays
+plain text if a language chunk is not loaded yet; once the chunk arrives, the
+controller patches only the `<code>` contents with token spans and keeps
+`textContent` byte-for-byte identical to the literal source. Pass
+`syntaxHighlight: false` to `createLiteralMarkdownEditor` to disable this.
+
 Use `@mizchi/markdown/editor/literal` when embedding only the literal
 controller. That subpath exports only framework-agnostic DOM helpers and does
 not import the Luna-based `SyntaxHighlightEditor` component.

@@ -38,6 +38,7 @@ export interface LiteralMarkdownEditorOptions {
     initialSource?: string;
     mode?: LiteralMarkdownMode;
     imagePreview?: boolean;
+    syntaxHighlight?: boolean;
     imagePreviewClass?: string;
     onPatchStats?: (stats: PatchStats) => void;
     onInvariant?: (state: LiteralMarkdownInvariantState) => void;
