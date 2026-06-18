@@ -124,6 +124,17 @@ fn BlockParser::detect_list_marker(
 }
 
 ///|
+fn BlockParser::current_bullet_item_matches(
+  self : BlockParser,
+  marker : BulletMarker,
+) -> Bool {
+  match self.detect_list_marker() {
+    Some((ListMarkerKind::Bullet(current), _)) => current == marker
+    _ => false
+  }
+}
+
+///|
 /// Parse bullet list
 fn BlockParser::parse_bullet_list(
   self : BlockParser,
@@ -138,14 +149,8 @@ fn BlockParser::parse_bullet_list(
     let item_start = self.scanner.pos
     let marker_offset = self.scanner.skip_spaces()
 
-    // Check marker matches
-    let current_marker = match self.scanner.peek() {
-      Some('-') => Some(BulletMarker::Dash)
-      Some('*') => Some(BulletMarker::Asterisk)
-      Some('+') => Some(BulletMarker::Plus)
-      _ => None
-    }
-    if current_marker != Some(marker) {
+    // Check marker matches and is followed by required whitespace.
+    if !self.current_bullet_item_matches(marker) {
       self.scanner.restore(item_start)
       break
     }
@@ -260,12 +265,7 @@ fn BlockParser::next_bullet_item_matches(
 ) -> Bool {
   let saved = self.scanner.pos
   let _ = self.scanner.skip_spaces()
-  let matches = match self.scanner.peek() {
-    Some('-') => marker == BulletMarker::Dash
-    Some('*') => marker == BulletMarker::Asterisk
-    Some('+') => marker == BulletMarker::Plus
-    _ => false
-  }
+  let matches = self.current_bullet_item_matches(marker)
   self.scanner.restore(saved)
   matches
 }
@@ -337,15 +337,8 @@ fn BlockParser::parse_list_item(
     }
 
     // Check if this is a nested list
-    match self.scanner.peek() {
-      Some('-') | Some('*') | Some('+') => {
-        // Nested bullet list
-        let nested_marker = match self.scanner.peek() {
-          Some('-') => BulletMarker::Dash
-          Some('*') => BulletMarker::Asterisk
-          Some('+') => BulletMarker::Plus
-          _ => panic() // unreachable
-        }
+    match self.detect_list_marker() {
+      Some((ListMarkerKind::Bullet(nested_marker), _)) => {
         self.scanner.restore(saved)
         match self.parse_nested_bullet_list(nested_marker, min_indent) {
           Some(nested_list) => children.push(nested_list)
@@ -387,14 +380,8 @@ fn BlockParser::parse_nested_bullet_list(
       break
     }
 
-    // Check marker matches
-    let current_marker = match self.scanner.peek() {
-      Some('-') => Some(BulletMarker::Dash)
-      Some('*') => Some(BulletMarker::Asterisk)
-      Some('+') => Some(BulletMarker::Plus)
-      _ => None
-    }
-    if current_marker != Some(marker) {
+    // Check marker matches and is followed by required whitespace.
+    if !self.current_bullet_item_matches(marker) {
       self.scanner.restore(item_start)
       break
     }

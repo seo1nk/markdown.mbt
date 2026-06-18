@@ -8,6 +8,10 @@
 let inline_simple : String = "Hello World"
 
 ///|
+let inline_plain_long : String =
+  "This is a long plain paragraph with no inline markers. It should be parsed as one text run without repeated string concatenation. Markdown documents often contain many sentences like this, so this path matters for full document parsing."
+
+///|
 let inline_emphasis : String = "Hello *world* and **bold** and `code` here"
 
 ///|
@@ -55,6 +59,14 @@ let inline_stress_100 : String = generate_inline_stress(100)
 test "inline: simple text" (b : @bench.T) {
   b.bench(fn() {
     let result = parse_inlines(inline_simple)
+    b.keep(result)
+  })
+}
+
+///|
+test "inline: long plain text" (b : @bench.T) {
+  b.bench(fn() {
+    let result = parse_inlines(inline_plain_long)
     b.keep(result)
   })
 }

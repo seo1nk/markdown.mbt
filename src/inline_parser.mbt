@@ -47,6 +47,31 @@ fn trim_trailing_space_from_last_text(inlines : Array[Inline]) -> Unit {
   }
 }
 
+///|
+fn append_text(inlines : Array[Inline], content : String, span : Span) -> Unit {
+  guard !content.is_empty() else { return }
+  match inlines.last() {
+    Some(Inline::Text(content=prev, span=prev_span)) => {
+      let _ = inlines.pop()
+      inlines.push(
+        Inline::Text(
+          content=prev + content,
+          span=Span::new(prev_span.from, span.to),
+        ),
+      )
+    }
+    _ => inlines.push(Inline::Text(content~, span~))
+  }
+}
+
+///|
+fn is_inline_marker(c : Char) -> Bool {
+  match c {
+    '\\' | '`' | '*' | '_' | '~' | '[' | '!' | '<' | '\n' => true
+    _ => false
+  }
+}
+
 ///| Parse inline content from text
 
 ///| When strict=true, uses delimiter stack algorithm for full CommonMark compliance
@@ -108,38 +133,53 @@ fn InlineParser::parse(self : InlineParser) -> Array[Inline] {
         inlines.push(inline)
       }
       None => {
-        // Consume single character as text
         let start = self.scanner.pos
-        match self.scanner.consume() {
-          Some(c) => {
-            // Merge with previous text if possible
-            let text = String::make(1, c)
-            match inlines.last() {
-              Some(Inline::Text(content~, span~)) => {
-                // Merge with previous text
-                let _ = inlines.pop()
-                inlines.push(
-                  Inline::Text(
-                    content=content + text,
-                    span=Span::new(span.from, self.scanner.pos),
-                  ),
-                )
-              }
-              _ =>
-                inlines.push(
-                  Inline::Text(
-                    content=text,
-                    span=Span::new(start, self.scanner.pos),
-                  ),
-                )
-            }
-          }
-          None => break
+        let text = self.read_text_run(start)
+        if text.is_empty() {
+          break
         }
+        append_text(inlines, text, Span::new(start, self.scanner.pos))
       }
     }
   }
   inlines
+}
+
+///|
+fn InlineParser::read_text_run(
+  self : InlineParser,
+  start : Int,
+) -> String {
+  let mut idx = start
+  while idx < self.scanner.len {
+    let c = self.scanner.chars[idx]
+    if c == ' ' {
+      let space_start = idx
+      while idx < self.scanner.len && self.scanner.chars[idx] == ' ' {
+        idx += 1
+      }
+      if idx - space_start >= 2 &&
+        idx < self.scanner.len &&
+        self.scanner.chars[idx] == '\n' {
+        idx = space_start
+        break
+      }
+    } else if is_inline_marker(c) {
+      break
+    } else {
+      idx += 1
+    }
+  }
+  self.scanner.pos = idx
+
+  if self.scanner.pos > start {
+    self.scanner.substring(start, self.scanner.pos)
+  } else {
+    match self.scanner.consume() {
+      Some(c) => String::make(1, c)
+      None => ""
+    }
+  }
 }
 
 ///|

@@ -215,6 +215,29 @@ test "parse bullet list" {
 }
 
 ///|
+test "parse bullet list followed by thematic break" {
+  let result = parse("- A\n- B\n- C\n\n----\n")
+  let children = result.document.children
+  @debug.debug_inspect(children.length(), content="3")
+  match children[0] {
+    Block::BulletList(items~, ..) =>
+      @debug.debug_inspect(items.length(), content="3")
+    _ => fail("Expected bullet list")
+  }
+  match children[1] {
+    Block::BlankLines(count~, ..) => @debug.debug_inspect(count, content="1")
+    _ => fail("Expected blank line")
+  }
+  match children[2] {
+    Block::ThematicBreak(marker~, count~, ..) => {
+      @debug.debug_inspect(marker == '-', content="true")
+      @debug.debug_inspect(count, content="4")
+    }
+    _ => fail("Expected thematic break")
+  }
+}
+
+///|
 test "parse ordered list" {
   let result = parse("1. First\n2. Second\n")
   match result.document.children[0] {
