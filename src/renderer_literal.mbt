@@ -553,11 +553,11 @@ fn render_block_literal(
   opts : LiteralOpts,
 ) -> Unit {
   match block {
-    Block::ThematicBreak(span~, ..) => {
+    Block::ThematicBreak(marker~, count~, span~, ..) => {
       buf.write_string("<div role=\"separator\"")
       write_pos_attrs(buf, span, opts.positions)
       buf.write_char('>')
-      write_marker(buf, "***")
+      write_marker_repeat(buf, marker, count)
       buf.write_string("</div>\n")
     }
     Block::Heading(level~, style~, children~, span~, ..) => {

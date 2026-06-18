@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parse,
   toHtml,
+  toHtmlLiteral,
   toMarkdown,
   createDocument,
   insertEdit,
@@ -82,6 +83,25 @@ describe("toHtml", () => {
         autolink: false,
       })
     ).toBe('<p><a href="MoonBit">MoonBit notes</a> https://example.com/docs</p>\n');
+  });
+
+  it("renders a bullet list directly followed by a thematic break", () => {
+    const source = "- a\n- m\n---------------\n";
+    expect(parse(source).children.map((node) => node.type)).toEqual([
+      "list",
+      "thematicBreak",
+    ]);
+    expect(toHtml(source)).toBe("<ul>\n<li>a</li>\n<li>m</li>\n</ul>\n<hr>\n");
+  });
+});
+
+describe("toHtmlLiteral", () => {
+  it("preserves a thematic break marker after a bullet list", () => {
+    const html = toHtmlLiteral("- a\n- m\n---------------\n");
+    expect(html).toContain(
+      'class="md-marker" aria-hidden="true">---------------</span>'
+    );
+    expect(html).not.toContain('class="md-marker" aria-hidden="true">***</span>');
   });
 });
 

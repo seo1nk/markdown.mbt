@@ -238,6 +238,25 @@ test "parse bullet list followed by thematic break" {
 }
 
 ///|
+test "parse bullet list directly followed by thematic break" {
+  let result = parse("- a\n- m\n---------------\n")
+  let children = result.document.children
+  @debug.debug_inspect(children.length(), content="2")
+  match children[0] {
+    Block::BulletList(items~, ..) =>
+      @debug.debug_inspect(items.length(), content="2")
+    _ => fail("Expected bullet list")
+  }
+  match children[1] {
+    Block::ThematicBreak(marker~, count~, ..) => {
+      @debug.debug_inspect(marker == '-', content="true")
+      @debug.debug_inspect(count, content="15")
+    }
+    _ => fail("Expected thematic break")
+  }
+}
+
+///|
 test "parse ordered list" {
   let result = parse("1. First\n2. Second\n")
   match result.document.children[0] {

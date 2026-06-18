@@ -32,6 +32,14 @@ test "html: bullet list followed by thematic break" {
 }
 
 ///|
+test "html: bullet list directly followed by thematic break" {
+  assert_html_compat(
+    "- a\n- m\n---------------\n",
+    "bullet list directly followed by thematic break",
+  )
+}
+
+///|
 test "html: ordered list" {
   assert_html_compat("1. one\n2. two\n3. three\n", "ordered list")
 }

@@ -152,6 +152,12 @@ test "literal: preserves blank line after list before next block" {
 }
 
 ///|
+test "literal: preserves thematic break marker after list" {
+  let html = md_to_html_literal("- a\n- m\n---------------\n")
+  assert_eq(strip_html(html), "- a\n- m\n---------------\n")
+}
+
+///|
 test "literal: bullet list" {
   let html = md_to_html_literal("- one\n- two\n")
   @debug.debug_inspect(
