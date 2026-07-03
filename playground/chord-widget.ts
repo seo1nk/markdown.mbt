@@ -50,27 +50,37 @@ function scheduleAudio(ctx: AudioContext, data: PlaybackData, spb: number): void
   const master = ctx.createGain();
   master.gain.value = 0.9;
   master.connect(ctx.destination);
+  // 次のコードと重ならないよう、発音は次の開始より少し手前で完全に終える
+  const GAP = 0.06; // コード間の無音(秒)
+  const RELEASE = 0.09; // リリース(秒)
   for (const ev of data.events) {
     const start = t0 + ev.beat * spb;
-    const stop = start + ev.dur * spb;
+    const stop = start + ev.dur * spb - GAP; // 実際の消音完了時刻
+    const attackEnd = start + 0.02;
     const peak = 0.28 / Math.sqrt(Math.max(1, ev.notes.length));
+    const sustain = peak * 0.5;
+    // 減衰の終点とリリース開始点(短い音でも順序が崩れないようクランプ)
+    const decayEnd = Math.min(
+      start + Math.max(0.1, (stop - start) * 0.6),
+      stop - RELEASE,
+    );
     for (const note of ev.notes) {
       const osc = ctx.createOscillator();
       osc.type = "triangle";
       osc.frequency.value = midiToFreq(note);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, start);
-      g.gain.linearRampToValueAtTime(peak, start + 0.02);
-      g.gain.exponentialRampToValueAtTime(
-        peak * 0.5,
-        start + Math.min(0.5, Math.max(0.1, (stop - start) * 0.7)),
-      );
-      g.gain.setValueAtTime(g.gain.value ?? peak * 0.5, Math.max(start + 0.02, stop - 0.06));
-      g.gain.linearRampToValueAtTime(0.0001, stop);
+      g.gain.linearRampToValueAtTime(peak, attackEnd);
+      if (decayEnd > attackEnd) {
+        // 減衰 → その値のまま保持 → 滑らかにリリース(値のジャンプなし)
+        g.gain.exponentialRampToValueAtTime(sustain, decayEnd);
+        g.gain.setValueAtTime(sustain, Math.max(decayEnd, stop - RELEASE));
+      }
+      g.gain.exponentialRampToValueAtTime(0.0001, stop);
       osc.connect(g);
       g.connect(master);
       osc.start(start);
-      osc.stop(stop + 0.05);
+      osc.stop(stop + 0.01); // ゲインが 0 に達してから停止(クリック防止)
     }
   }
 }

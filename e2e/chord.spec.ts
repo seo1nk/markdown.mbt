@@ -301,7 +301,7 @@ test.describe("Chord block preview", () => {
   test("play button starts playback with cursor highlight and toggles to stop", async ({ page }) => {
     const textarea = page.locator("textarea").first();
     await textarea.click();
-    await textarea.fill(":::\n---\nkey: G\ntempo: 240\n---\n| 1 4 | 5 1 |\n:::\n");
+    await textarea.fill(":::\n---\nkey: G\ntempo: 400\n---\n| 1 4 |\n:::\n");
     await page.waitForTimeout(500);
 
     const play = page.locator(".preview .chord-play");
@@ -314,7 +314,7 @@ test.describe("Chord block preview", () => {
     await play.click();
     await expect(play).toHaveText("▶ 再生");
     await expect(page.locator(".preview .chord-cell--playing")).toHaveCount(0);
-    // 再生し切ると自動停止する (240BPM × 4拍 = 1秒)
+    // 再生し切ると自動停止する (400BPM × 8拍 = 1.2秒)
     await play.click();
     await expect(play).toHaveText("■ 停止");
     await expect(play).toHaveText("▶ 再生", { timeout: 4000 });
