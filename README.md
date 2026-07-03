@@ -26,6 +26,11 @@
 > - `playground/`: chord ハンドラ・クライアントランタイム（chord-widget.ts）・CSS 注入
 > - `e2e/chord.spec.ts`: コード譜ブロックの E2E
 >
+> ### ライセンス
+>
+> - 本リポジトリ（フォーク本体とフォークによる変更分）: **MIT**（原著作者 [mizchi](https://github.com/mizchi) の LICENSE・著作権表記をそのまま保持）
+> - submodule の [chord-language](https://github.com/seo1nk/chord-language): **Apache-2.0**（独立した別リポジトリ。ライセンスは同リポジトリの LICENSE を参照）
+>
 > 以下は本家の README。
 
 CST-based incremental Markdown parser for JavaScript/MoonBit.
