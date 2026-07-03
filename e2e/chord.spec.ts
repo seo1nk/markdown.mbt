@@ -123,4 +123,35 @@ test.describe("Chord block preview", () => {
     // 他言語のコードブロックは通常どおり
     await expect(preview).toContainText("const x = 1;");
   });
+
+  test("partial rendering keeps valid lines with in-place errors", async ({ page }) => {
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill(":::\n1 3m7\n8x 5\n4M7 1\n:::\n");
+    await page.waitForTimeout(500);
+
+    const score = page.locator(".preview .chord-score");
+    await expect(score).toBeVisible({ timeout: 5000 });
+    // 正しい行 (1,3行目) は描画され続ける
+    await expect(score).toContainText("IIIm7");
+    await expect(score).toContainText("IVM7");
+    // エラー行はその場に行番号・位置つきで埋め込まれる
+    const error = score.locator(".chord-error");
+    await expect(error).toBeVisible();
+    await expect(error.locator(".chord-error-msg")).toContainText("line 2");
+    await expect(error.locator(".chord-error-msg")).toContainText("position 0");
+    await expect(error.locator(".chord-error-src")).toContainText("8x 5");
+  });
+
+  test("frontmatter key block renders without errors", async ({ page }) => {
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill(":::\n---\nkey: G\n---\n1 4 5\n:::\n");
+    await page.waitForTimeout(500);
+
+    const score = page.locator(".preview .chord-score");
+    await expect(score).toBeVisible({ timeout: 5000 });
+    await expect(score).toContainText("IV");
+    await expect(page.locator(".preview .chord-error")).not.toBeVisible();
+  });
 });
