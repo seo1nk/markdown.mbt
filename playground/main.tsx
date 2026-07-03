@@ -4,6 +4,16 @@ import type { Root } from "mdast";
 import type { RendererCallbacks } from "./ast-renderer";
 import { SyntaxHighlightEditor, type SyntaxHighlightEditorHandle } from "../frontend/editor/SyntaxHighlightEditor";
 import { PreviewPane } from "./PreviewPane";
+// @ts-ignore -- MoonBit ビルド出力 (型定義なし)
+import { chord_css } from "../../chord-language/_build/js/release/build/chord_language.js";
+
+// chord ブロック用 CSS を head に一度だけ注入する
+// (playground にはランタイム CSS 注入機構がないため、ここで直接行う)
+{
+  const chordStyle = document.createElement("style");
+  chordStyle.textContent = chord_css();
+  document.head.appendChild(chordStyle);
+}
 
 // IndexedDB for content (reliable async storage)
 const IDB_NAME = "markdown-editor";

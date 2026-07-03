@@ -8,6 +8,8 @@ import {
   type RendererOptions,
 } from "./ast-renderer";
 import { MoonlightEditor } from "./MoonlightEditor";
+// @ts-ignore -- MoonBit ビルド出力 (型定義なし)
+import { parse_to_html as chordToHtml } from "../../chord-language/_build/js/release/build/chord_language.js";
 
 interface PreviewRenderState {
   ast: Root;
@@ -48,6 +50,17 @@ export function PreviewPane(props: PreviewPaneProps) {
                     return null;
                   }
                   return <RawHtml key={key} data-span={span} html={sanitizeSvg(code)} />;
+                },
+              },
+              chord: {
+                render: (code, span, key, mode) => {
+                  // ```chord:code はソース表示（通常ハイライトへフォールスルー）
+                  if (mode === "code") {
+                    return null;
+                  }
+                  // parse_to_html はパース失敗時も行番号つきエラーHTMLを返すため、
+                  // 不正な DSL 入力でプレビュー全体は壊れない
+                  return <RawHtml key={key} data-span={span} html={chordToHtml(code)} />;
                 },
               },
               "moonlight-svg": {
