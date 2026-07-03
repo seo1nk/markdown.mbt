@@ -9,7 +9,7 @@ import {
 } from "./ast-renderer";
 import { MoonlightEditor } from "./MoonlightEditor";
 // @ts-ignore -- MoonBit ビルド出力 (型定義なし)
-import { parse_to_html as chordToHtml } from "../../chord-language/_build/js/release/build/chord_language.js";
+import { render_widget_html as chordToHtml } from "../../chord-language/_build/js/release/build/chord_language.js";
 
 interface PreviewRenderState {
   ast: Root;
@@ -58,7 +58,8 @@ export function PreviewPane(props: PreviewPaneProps) {
                   if (mode === "code") {
                     return null;
                   }
-                  // parse_to_html はパース失敗時も行番号つきエラーHTMLを返すため、
+                  // render_widget_html はタブ・キープルダウン込みのウィジェット HTML を返す。
+                  // パース失敗時は行番号つきエラーHTMLにフォールバックするため、
                   // 不正な DSL 入力でプレビュー全体は壊れない
                   return <RawHtml key={key} data-span={span} html={chordToHtml(code)} />;
                 },

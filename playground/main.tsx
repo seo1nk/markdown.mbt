@@ -6,6 +6,7 @@ import { SyntaxHighlightEditor, type SyntaxHighlightEditorHandle } from "../fron
 import { PreviewPane } from "./PreviewPane";
 // @ts-ignore -- MoonBit ビルド出力 (型定義なし)
 import { chord_css } from "../../chord-language/_build/js/release/build/chord_language.js";
+import { installChordWidgets } from "./chord-widget";
 
 // chord ブロック用 CSS を head に一度だけ注入する
 // (playground にはランタイム CSS 注入機構がないため、ここで直接行う)
@@ -13,6 +14,7 @@ import { chord_css } from "../../chord-language/_build/js/release/build/chord_la
   const chordStyle = document.createElement("style");
   chordStyle.textContent = chord_css();
   document.head.appendChild(chordStyle);
+  installChordWidgets();
 }
 
 // IndexedDB for content (reliable async storage)
