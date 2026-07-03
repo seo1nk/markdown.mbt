@@ -34,7 +34,8 @@ test.describe("Chord block preview", () => {
     await expect(score.locator(".chord-cell.chord").first()).toHaveText("I");
     await expect(score).toContainText("IIIm7");
     await expect(score).toContainText("♭VII");
-    await expect(score.locator(".chord-barline")).toHaveCount(1);
+    // | で区切られた 2 小節のグリッドとして描画される
+    await expect(score.locator(".chord-measure")).toHaveCount(2);
     // コードパネルは非表示
     await expect(page.locator(notesScore)).not.toBeVisible();
   });
