@@ -297,4 +297,26 @@ test.describe("Chord block preview", () => {
     // ラベルが元に戻る
     await expect(button).toHaveText("画像コピー", { timeout: 5000 });
   });
+
+  test("play button starts playback with cursor highlight and toggles to stop", async ({ page }) => {
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill(":::\n---\nkey: G\ntempo: 240\n---\n| 1 4 | 5 1 |\n:::\n");
+    await page.waitForTimeout(500);
+
+    const play = page.locator(".preview .chord-play");
+    await expect(play).toHaveText("▶ 再生");
+    await play.click();
+    // 再生中: ボタンが停止表示になり、カーソルがセルをハイライトする
+    await expect(play).toHaveText("■ 停止");
+    await expect(page.locator(".preview .chord-cell--playing")).toHaveCount(1, { timeout: 3000 });
+    // 手動停止でラベルとハイライトが戻る
+    await play.click();
+    await expect(play).toHaveText("▶ 再生");
+    await expect(page.locator(".preview .chord-cell--playing")).toHaveCount(0);
+    // 再生し切ると自動停止する (240BPM × 4拍 = 1秒)
+    await play.click();
+    await expect(play).toHaveText("■ 停止");
+    await expect(play).toHaveText("▶ 再生", { timeout: 4000 });
+  });
 });

@@ -4,9 +4,126 @@
 // chord-language の render_widget_html が生成する（単一ソース）ため、
 // SSR ページでもライブプレビューでも、このモジュールを一度読み込むだけで動く。
 // @ts-ignore -- MoonBit ビルド出力 (型定義なし)
-import { parse_to_notes_html, chord_css } from "../../chord-language/_build/js/release/build/chord_language.js";
+import { parse_to_notes_html, parse_to_playback, chord_css } from "../../chord-language/_build/js/release/build/chord_language.js";
 
 let installed = false;
+
+// ---- 再生 (v1.6) ----
+// スケジュール(ディグリー→MIDI・拍割り付け)は MoonBit 側の parse_to_playback が
+// 生成し、ここでは Web Audio の発音とカーソルハイライトだけを行う。
+interface PlaybackData {
+  tempo: number;
+  totalBeats: number;
+  events: { beat: number; dur: number; notes: number[] }[];
+  cursor: { beat: number; dur: number; cell: number }[];
+}
+
+interface Player {
+  widget: HTMLElement;
+  ctx: AudioContext | null;
+  timers: number[];
+  cells: HTMLElement[];
+  button: HTMLElement;
+}
+
+let player: Player | null = null;
+
+function stopPlayback(): void {
+  if (!player) return;
+  for (const t of player.timers) clearTimeout(t);
+  for (const c of player.cells) c.classList.remove("chord-cell--playing");
+  if (player.ctx) {
+    void player.ctx.close().catch(() => {});
+  }
+  player.button.textContent = "▶ 再生";
+  player = null;
+}
+
+function midiToFreq(n: number): number {
+  return 440 * Math.pow(2, (n - 69) / 12);
+}
+
+const LEAD_IN = 0.08; // 再生開始までの猶予(秒)
+
+function scheduleAudio(ctx: AudioContext, data: PlaybackData, spb: number): void {
+  const t0 = ctx.currentTime + LEAD_IN;
+  const master = ctx.createGain();
+  master.gain.value = 0.9;
+  master.connect(ctx.destination);
+  for (const ev of data.events) {
+    const start = t0 + ev.beat * spb;
+    const stop = start + ev.dur * spb;
+    const peak = 0.28 / Math.sqrt(Math.max(1, ev.notes.length));
+    for (const note of ev.notes) {
+      const osc = ctx.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.value = midiToFreq(note);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.linearRampToValueAtTime(peak, start + 0.02);
+      g.gain.exponentialRampToValueAtTime(
+        peak * 0.5,
+        start + Math.min(0.5, Math.max(0.1, (stop - start) * 0.7)),
+      );
+      g.gain.setValueAtTime(g.gain.value ?? peak * 0.5, Math.max(start + 0.02, stop - 0.06));
+      g.gain.linearRampToValueAtTime(0.0001, stop);
+      osc.connect(g);
+      g.connect(master);
+      osc.start(start);
+      osc.stop(stop + 0.05);
+    }
+  }
+}
+
+function startPlayback(widget: HTMLElement, button: HTMLElement): void {
+  stopPlayback();
+  const src = widget.dataset.chordSrc ?? "";
+  const key = widget.dataset.chordKey ?? "C";
+  let data: PlaybackData;
+  try {
+    data = JSON.parse(parse_to_playback(src, key));
+  } catch {
+    return;
+  }
+  if (data.totalBeats <= 0) return;
+  const spb = 60 / (data.tempo || 100);
+
+  // 音: AudioContext が使えない環境でもカーソルは動かす
+  let ctx: AudioContext | null = null;
+  try {
+    ctx = new AudioContext();
+    void ctx.resume().catch(() => {});
+    scheduleAudio(ctx, data, spb);
+  } catch {
+    ctx = null;
+  }
+
+  // カーソル: 表示中のタブのセルをハイライト
+  const active = widget.dataset.chordActive === "notes" ? "notes" : "degree";
+  const cells = Array.from(
+    widget.querySelectorAll<HTMLElement>(`.chord-panel--${active} .chord-cell`),
+  );
+  const timers: number[] = [];
+  for (const cur of data.cursor) {
+    timers.push(
+      window.setTimeout(
+        () => {
+          for (const c of cells) c.classList.remove("chord-cell--playing");
+          cells[cur.cell]?.classList.add("chord-cell--playing");
+        },
+        (LEAD_IN + cur.beat * spb) * 1000,
+      ),
+    );
+  }
+  timers.push(
+    window.setTimeout(
+      () => stopPlayback(),
+      (LEAD_IN + data.totalBeats * spb) * 1000 + 200,
+    ),
+  );
+  button.textContent = "■ 停止";
+  player = { widget, ctx, timers, cells, button };
+}
 
 // 表示中の譜面 (.chord-score) を PNG Blob にする。
 // 外部ライブラリを使わず、譜面 HTML + chord_css を SVG の foreignObject に
@@ -99,9 +216,21 @@ export function installChordWidgets(): void {
   if (installed) return;
   installed = true;
 
-  // タブ切替 / 画像コピー
+  // タブ切替 / 画像コピー / 再生
   document.addEventListener("click", (ev) => {
     const target = ev.target as HTMLElement | null;
+    const playBtn = target?.closest?.(".chord-play") as HTMLElement | null;
+    if (playBtn) {
+      const widget = playBtn.closest(".chord-widget") as HTMLElement | null;
+      if (widget) {
+        if (player && player.widget === widget) {
+          stopPlayback();
+        } else {
+          startPlayback(widget, playBtn);
+        }
+      }
+      return;
+    }
     const copyBtn = target?.closest?.(".chord-copy-img") as HTMLElement | null;
     if (copyBtn) {
       const widget = copyBtn.closest(".chord-widget") as HTMLElement | null;
@@ -128,6 +257,9 @@ export function installChordWidgets(): void {
     if (!select?.classList?.contains("chord-key-select")) return;
     const widget = select.closest(".chord-widget") as HTMLElement | null;
     if (!widget) return;
+    if (player && player.widget === widget) {
+      stopPlayback();
+    }
     const src = widget.dataset.chordSrc ?? "";
     widget.dataset.chordKey = select.value;
     const panel = widget.querySelector(".chord-panel--notes");
