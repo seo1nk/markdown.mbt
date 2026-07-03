@@ -301,7 +301,7 @@ test.describe("Chord block preview", () => {
   test("play button starts playback with cursor highlight and toggles to stop", async ({ page }) => {
     const textarea = page.locator("textarea").first();
     await textarea.click();
-    await textarea.fill(":::\n---\nkey: G\ntempo: 400\n---\n| 1 4 |\n:::\n");
+    await textarea.fill(":::\n---\nkey: G\nbpm: 400\n---\n| 1 4 |\n:::\n");
     await page.waitForTimeout(500);
 
     const play = page.locator(".preview .chord-play");

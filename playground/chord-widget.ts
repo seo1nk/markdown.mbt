@@ -15,6 +15,7 @@ interface PlaybackData {
   tempo: number;
   totalBeats: number;
   events: { beat: number; dur: number; notes: number[] }[];
+  bass: { beat: number; dur: number; note: number }[];
   cursor: { beat: number; dur: number; cell: number }[];
 }
 
@@ -82,6 +83,23 @@ function scheduleAudio(ctx: AudioContext, data: PlaybackData, spb: number): void
       osc.start(start);
       osc.stop(stop + 0.01); // ゲインが 0 に達してから停止(クリック防止)
     }
+  }
+  // ベーストラック: 拍ごとにプラッキーに刻む(素早い減衰で次の打と重ならない)
+  for (const b of data.bass) {
+    const start = t0 + b.beat * spb;
+    const stop = start + b.dur * spb - 0.03;
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.value = midiToFreq(b.note);
+    const g = ctx.createGain();
+    const peak = 0.3;
+    g.gain.setValueAtTime(0.0001, start);
+    g.gain.linearRampToValueAtTime(peak, start + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, Math.max(start + 0.05, stop));
+    osc.connect(g);
+    g.connect(master);
+    osc.start(start);
+    osc.stop(stop + 0.01);
   }
 }
 
