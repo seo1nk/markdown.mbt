@@ -92,7 +92,7 @@ function scheduleAudio(ctx: AudioContext, data: PlaybackData, spb: number): void
     osc.type = "triangle";
     osc.frequency.value = midiToFreq(b.note);
     const g = ctx.createGain();
-    const peak = 0.3;
+    const peak = 0.5; // ベースは上声より大きめに(ユーザー指定)
     g.gain.setValueAtTime(0.0001, start);
     g.gain.linearRampToValueAtTime(peak, start + 0.012);
     g.gain.exponentialRampToValueAtTime(0.0001, Math.max(start + 0.05, stop));
