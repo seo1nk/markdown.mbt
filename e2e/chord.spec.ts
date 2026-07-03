@@ -204,4 +204,28 @@ test.describe("Chord block preview", () => {
     await expect(page.locator(degreeScore)).toBeVisible();
     await expect(preview).toContainText("const x = 1;");
   });
+
+  test("repeat marks and tilde groups render and transpose", async ({ page }) => {
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill(
+      ":::\n---\nkey: Eb\n---\n| 1/3 4 5 37/b6@red |\n| 6m7 3m/5 4m 2~5 |\n| 1 % |\n:::\n",
+    );
+    await page.waitForTimeout(500);
+
+    // ディグリータブ: ~ グループは 1 スロットに 2 コード
+    const group = page.locator(`${degreeScore} .chord-group`);
+    await expect(group).toBeVisible({ timeout: 5000 });
+    await expect(group.locator(".chord").nth(0)).toHaveText("II");
+    await expect(group.locator(".chord").nth(1)).toHaveText("V");
+    // % は反復記号として描画
+    await expect(page.locator(`${degreeScore} .chord-repeat`)).toHaveText("%");
+
+    // コードタブ (key=Eb): グループは F / B♭、% はそのまま
+    await page.locator('.preview .chord-tab[data-chord-tab="notes"]').click();
+    const notesGroup = page.locator(`${notesScore} .chord-group`);
+    await expect(notesGroup.locator(".chord").nth(0)).toHaveText("F");
+    await expect(notesGroup.locator(".chord").nth(1)).toHaveText("B♭");
+    await expect(page.locator(`${notesScore} .chord-repeat`)).toHaveText("%");
+  });
 });
