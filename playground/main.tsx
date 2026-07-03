@@ -5,7 +5,7 @@ import type { RendererCallbacks } from "./ast-renderer";
 import { SyntaxHighlightEditor, type SyntaxHighlightEditorHandle } from "../frontend/editor/SyntaxHighlightEditor";
 import { PreviewPane } from "./PreviewPane";
 // @ts-ignore -- MoonBit ビルド出力 (型定義なし)
-import { chord_css } from "../../chord-language/_build/js/release/build/chord_language.js";
+import { chord_css } from "../_build/js/release/build/seo1nk/chord_language/chord_language.js";
 import { installChordWidgets } from "./chord-widget";
 
 // chord ブロック用 CSS を head に一度だけ注入する

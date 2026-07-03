@@ -21,7 +21,7 @@ import {
   md_parse_with_source_with_wikilinks,
   md_parse_incremental,
   md_free,
-} from "../_build/js/release/build/api/api.js";
+} from "../_build/js/release/build/mizchi/markdown/api/api.js";
 
 // =============================================================================
 // Stateless One-shot APIs (recommended for most use cases)

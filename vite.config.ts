@@ -7,12 +7,6 @@ export default defineConfig({
     jsxImportSource: "@luna_ui/luna",
   },
   root: "playground",
-  server: {
-    fs: {
-      // chord-language (sibling repo) の JS ビルドを playground から import するため
-      allow: [".", resolve(__dirname, "../chord-language")],
-    },
-  },
   build: {
     rollupOptions: {
       input: {

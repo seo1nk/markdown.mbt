@@ -4,7 +4,7 @@
 // chord-language の render_widget_html が生成する（単一ソース）ため、
 // SSR ページでもライブプレビューでも、このモジュールを一度読み込むだけで動く。
 // @ts-ignore -- MoonBit ビルド出力 (型定義なし)
-import { parse_to_notes_html, parse_to_playback, chord_css } from "../../chord-language/_build/js/release/build/chord_language.js";
+import { parse_to_notes_html, parse_to_playback, chord_css } from "../_build/js/release/build/seo1nk/chord_language/chord_language.js";
 
 let installed = false;
 

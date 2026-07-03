@@ -9,7 +9,7 @@ import {
 } from "./ast-renderer";
 import { MoonlightEditor } from "./MoonlightEditor";
 // @ts-ignore -- MoonBit ビルド出力 (型定義なし)
-import { render_widget_html as chordToHtml } from "../../chord-language/_build/js/release/build/chord_language.js";
+import { render_widget_html as chordToHtml } from "../_build/js/release/build/seo1nk/chord_language/chord_language.js";
 
 interface PreviewRenderState {
   ast: Root;
