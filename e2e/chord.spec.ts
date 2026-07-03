@@ -228,4 +228,27 @@ test.describe("Chord block preview", () => {
     await expect(notesGroup.locator(".chord").nth(1)).toHaveText("B♭");
     await expect(page.locator(`${notesScore} .chord-repeat`)).toHaveText("%");
   });
+
+  test("section labels and lyric lines render under chords", async ({ page }) => {
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill(
+      ":::\n---\nkey: G\n---\n[Aメロ]\n| 1M7 % | 2-5 |\n> ひかりの _ この-みち\n:::\n",
+    );
+    await page.waitForTimeout(500);
+
+    // セクションラベル
+    await expect(page.locator(`${degreeScore} .chord-section`)).toHaveText("Aメロ");
+    // 歌詞がコードの下に付く（_ のスロットには付かない）
+    const lyrics = page.locator(`${degreeScore} .chord-lyric`);
+    await expect(lyrics.nth(0)).toHaveText("ひかりの");
+    // グループには - で分配される
+    const group = page.locator(`${degreeScore} .chord-group`);
+    await expect(group).toContainText("この");
+    await expect(group).toContainText("みち");
+    // コードタブでも歌詞・セクションは保持される
+    await page.locator('.preview .chord-tab[data-chord-tab="notes"]').click();
+    await expect(page.locator(`${notesScore} .chord-section`)).toHaveText("Aメロ");
+    await expect(page.locator(`${notesScore} .chord-lyric`).nth(0)).toHaveText("ひかりの");
+  });
 });
