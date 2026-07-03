@@ -237,8 +237,17 @@ test.describe("Chord block preview", () => {
     );
     await page.waitForTimeout(500);
 
-    // セクションラベル
-    await expect(page.locator(`${degreeScore} .chord-section`)).toHaveText("Aメロ");
+    // セクションラベル(白抜き反転バッジ: 背景が塗られ、文字色は背景色系)
+    const section = page.locator(`${degreeScore} .chord-section`);
+    await expect(section).toHaveText("Aメロ");
+    const sectionStyle = await section.evaluate((el) => {
+      const bg = getComputedStyle(el).backgroundColor;
+      const name = el.querySelector(".chord-section-name");
+      const fg = name ? getComputedStyle(name).color : "";
+      return { bg, fg };
+    });
+    expect(sectionStyle.bg).not.toBe("rgba(0, 0, 0, 0)"); // 背景が塗られている
+    expect(sectionStyle.bg).not.toBe(sectionStyle.fg); // 反転している
     // 歌詞がコードの下に付く（_ のスロットには付かない）
     const lyrics = page.locator(`${degreeScore} .chord-lyric`);
     await expect(lyrics.nth(0)).toHaveText("ひかりの");
