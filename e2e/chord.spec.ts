@@ -251,4 +251,19 @@ test.describe("Chord block preview", () => {
     await expect(page.locator(`${notesScore} .chord-section`)).toHaveText("Aメロ");
     await expect(page.locator(`${notesScore} .chord-lyric`).nth(0)).toHaveText("ひかりの");
   });
+
+  test("no-chord and empty beats render with lyrics", async ({ page }) => {
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill(":::\n| NC 1 _ % |\n> ワン Let\'s_go _ フォー\n:::\n");
+    await page.waitForTimeout(500);
+
+    const score = page.locator(degreeScore);
+    await expect(score.locator(".chord-nc")).toContainText("N.C.");
+    // 断片中の _ は表示スペースになる
+    await expect(score.locator(".chord-lyric").nth(1)).toHaveText("Let's go");
+    // 空拍 _ はスロットを占有する(4スロット)
+    await expect(score.locator(".chord-cell")).toHaveCount(4);
+    await expect(score.locator(".chord-cell--blank")).toHaveCount(1);
+  });
 });
