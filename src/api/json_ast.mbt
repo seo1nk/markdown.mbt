@@ -68,9 +68,13 @@ fn block_to_json(block : @markdown.Block) -> Json? {
         "position": position_to_json(span),
       })
     }
-    @markdown.Block::FencedCode(info~, code~, span~, ..) => {
-      // Parse info string: first word is lang, rest is meta
-      let (lang, meta) = parse_code_info(info)
+    @markdown.Block::FencedCode(fence_marker~, info~, code~, span~, ..) => {
+      // Parse info string: first word is lang, rest is meta.
+      // fork: ::: fences are chord blocks regardless of info string
+      let (lang, meta) = match fence_marker {
+        @markdown.FenceMarker::Colon => (Json::string("chord"), Json::null())
+        _ => parse_code_info(info)
+      }
       Some({
         "type": "code",
         "lang": lang,

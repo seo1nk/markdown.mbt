@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
-// ```chord フェンスブロックのライブプレビュー (chord-language 統合の垂直スライス検証)
+// ::: コード譜ブロックのライブプレビュー (chord-language 統合の垂直スライス検証)
+// ディグリーはローマ数字 + ♭/# 記号で表示される (1→I, b7→♭VII, s4→#IV)
 test.describe("Chord block preview", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
@@ -13,29 +14,41 @@ test.describe("Chord block preview", () => {
     await page.waitForSelector(".syntax-editor-container, .simple-editor", { timeout: 10000 });
   });
 
-  test("chord block renders as chord score", async ({ page }) => {
+  test("colon fence renders as chord score with roman numerals", async ({ page }) => {
     const textarea = page.locator("textarea").first();
     await textarea.click();
-    await textarea.fill("# Song\n\n```chord\n1 3m7 4M7 5 | b7 1\n```\n");
+    await textarea.fill("# Song\n\n:::\n1 3m7 4M7 5 | b7 1\n:::\n");
     await page.waitForTimeout(500);
 
     const score = page.locator(".preview .chord-score");
     await expect(score).toBeVisible({ timeout: 5000 });
-    // コードセルとして描画されている (コードブロックのソース表示ではない)
-    await expect(score.locator(".chord-cell.chord").first()).toHaveText("1");
+    // ローマ数字表示 (コードブロックのソース表示ではない)
+    await expect(score.locator(".chord-cell.chord").first()).toHaveText("I");
+    await expect(score).toContainText("IIIm7");
+    await expect(score).toContainText("♭VII");
     await expect(score.locator(".chord-barline")).toHaveCount(1);
-    await expect(score).toContainText("3m7");
+  });
+
+  test("backtick chord fence still works (compat)", async ({ page }) => {
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill("```chord\n1 4 5\n```\n");
+    await page.waitForTimeout(500);
+
+    const score = page.locator(".preview .chord-score");
+    await expect(score).toBeVisible({ timeout: 5000 });
+    await expect(score).toContainText("IV");
   });
 
   test("colored chords get color classes", async ({ page }) => {
     const textarea = page.locator("textarea").first();
     await textarea.click();
-    await textarea.fill("```chord\n1@red 3m7@blue 5@green\n```\n");
+    await textarea.fill(":::\n1@red 3m7@blue 5@green\n:::\n");
     await page.waitForTimeout(500);
 
-    await expect(page.locator(".preview .chord--red")).toHaveText("1");
-    await expect(page.locator(".preview .chord--blue")).toHaveText("3m7");
-    await expect(page.locator(".preview .chord--green")).toHaveText("5");
+    await expect(page.locator(".preview .chord--red")).toHaveText("I");
+    await expect(page.locator(".preview .chord--blue")).toHaveText("IIIm7");
+    await expect(page.locator(".preview .chord--green")).toHaveText("V");
     // CSS が注入され、色が実際に適用されている
     const redColor = await page
       .locator(".preview .chord--red")
@@ -43,10 +56,21 @@ test.describe("Chord block preview", () => {
     expect(redColor).not.toBe("");
   });
 
+  test("accidentals render as flat/sharp symbols", async ({ page }) => {
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill(":::\ns4M7(b5,b9,s11)/b3\n:::\n");
+    await page.waitForTimeout(500);
+
+    await expect(page.locator(".preview .chord-cell.chord").first()).toHaveText(
+      "#IVM7(♭5,♭9,#11)/♭III",
+    );
+  });
+
   test("invalid chord input shows error fallback without breaking page", async ({ page }) => {
     const textarea = page.locator("textarea").first();
     await textarea.click();
-    await textarea.fill("before text\n\n```chord\n1 3m7\n8x 5\n```\n\nafter text");
+    await textarea.fill("before text\n\n:::\n1 3m7\n8x 5\n:::\n\nafter text");
     await page.waitForTimeout(500);
 
     const error = page.locator(".preview .chord-error");
@@ -63,11 +87,11 @@ test.describe("Chord block preview", () => {
   test("edit recovers from error to rendered score", async ({ page }) => {
     const textarea = page.locator("textarea").first();
     await textarea.click();
-    await textarea.fill("```chord\n8x\n```\n");
+    await textarea.fill(":::\n8x\n:::\n");
     await page.waitForTimeout(500);
     await expect(page.locator(".preview .chord-error")).toBeVisible({ timeout: 5000 });
 
-    await textarea.fill("```chord\n1 4 5\n```\n");
+    await textarea.fill(":::\n1 4 5\n:::\n");
     await page.waitForTimeout(500);
     await expect(page.locator(".preview .chord-score")).toBeVisible({ timeout: 5000 });
     await expect(page.locator(".preview .chord-error")).not.toBeVisible();
@@ -88,7 +112,7 @@ test.describe("Chord block preview", () => {
     const textarea = page.locator("textarea").first();
     await textarea.click();
     await textarea.fill(
-      "# Title\n\n**bold** text\n\n```chord\n1 4 5\n```\n\n```js\nconst x = 1;\n```\n",
+      "# Title\n\n**bold** text\n\n:::\n1 4 5\n:::\n\n```js\nconst x = 1;\n```\n",
     );
     await page.waitForTimeout(500);
 
