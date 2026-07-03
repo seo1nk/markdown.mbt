@@ -205,11 +205,11 @@ test.describe("Chord block preview", () => {
     await expect(preview).toContainText("const x = 1;");
   });
 
-  test("repeat marks and tilde groups render and transpose", async ({ page }) => {
+  test("repeat marks and dash groups render and transpose", async ({ page }) => {
     const textarea = page.locator("textarea").first();
     await textarea.click();
     await textarea.fill(
-      ":::\n---\nkey: Eb\n---\n| 1/3 4 5 37/b6@red |\n| 6m7 3m/5 4m 2~5 |\n| 1 % |\n:::\n",
+      ":::\n---\nkey: Eb\n---\n| 1/3 4 5 37/b6@red |\n| 6m7 3m/5 4m 2-5 |\n| 1 % |\n:::\n",
     );
     await page.waitForTimeout(500);
 
