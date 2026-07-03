@@ -275,4 +275,26 @@ test.describe("Chord block preview", () => {
     await expect(score.locator(".chord-cell")).toHaveCount(4);
     await expect(score.locator(".chord-cell--blank")).toHaveCount(1);
   });
+
+  test("copy score as image button copies a PNG to clipboard", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill(":::\n---\nkey: G\n---\n[Aメロ]\n| 1M7 % | 2-5 |\n> ひかりの _ この-みち\n:::\n");
+    await page.waitForTimeout(500);
+
+    const button = page.locator(".preview .chord-copy-img");
+    await expect(button).toBeVisible({ timeout: 5000 });
+    await button.click();
+    // 成功フィードバック
+    await expect(button).toHaveText(/コピーしました|保存しました/, { timeout: 5000 });
+    // クリップボードに PNG が入っている
+    const hasPng = await page.evaluate(async () => {
+      const items = await navigator.clipboard.read();
+      return items.some((item) => item.types.includes("image/png"));
+    });
+    expect(hasPng).toBe(true);
+    // ラベルが元に戻る
+    await expect(button).toHaveText("画像コピー", { timeout: 5000 });
+  });
 });
