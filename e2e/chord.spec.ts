@@ -100,14 +100,15 @@ test.describe("Chord block preview", () => {
     await expect(notes.locator(".chord-cell.chord").nth(2)).toHaveText("G");
   });
 
-  test("backtick chord fence still works (compat)", async ({ page }) => {
+  test("backtick fences render as plain code blocks (::: only)", async ({ page }) => {
     const textarea = page.locator("textarea").first();
     await textarea.click();
     await textarea.fill("```chord\n1 4 5\n```\n");
     await page.waitForTimeout(500);
 
-    await expect(page.locator(degreeScore)).toBeVisible({ timeout: 5000 });
-    await expect(page.locator(degreeScore)).toContainText("IV");
+    // ::: だけがコード譜ブロック。``` は言語タグに関わらず通常のコードブロック
+    await expect(page.locator(".preview .chord-widget")).not.toBeVisible();
+    await expect(page.locator(".preview pre").first()).toContainText("1 4 5");
   });
 
   test("colored chords get color classes in both tabs", async ({ page }) => {
@@ -180,16 +181,6 @@ test.describe("Chord block preview", () => {
     await expect(error.locator(".chord-error-src")).toContainText("8x 5");
   });
 
-  test("chord:code mode falls through to source highlighting", async ({ page }) => {
-    const textarea = page.locator("textarea").first();
-    await textarea.click();
-    await textarea.fill("```chord:code\n1 3m7 4M7 5\n```\n");
-    await page.waitForTimeout(500);
-
-    await expect(page.locator(".preview .chord-widget")).not.toBeVisible();
-    await expect(page.locator(".preview pre").first()).toContainText("1 3m7 4M7 5");
-  });
-
   test("regular markdown still renders alongside chord blocks", async ({ page }) => {
     const textarea = page.locator("textarea").first();
     await textarea.click();
@@ -213,7 +204,7 @@ test.describe("Chord block preview", () => {
     );
     await page.waitForTimeout(500);
 
-    // ディグリータブ: ~ グループは 1 スロットに 2 コード
+    // ディグリータブ: - グループは 1 スロットに 2 コード
     const group = page.locator(`${degreeScore} .chord-group`);
     await expect(group).toBeVisible({ timeout: 5000 });
     await expect(group.locator(".chord").nth(0)).toHaveText("II");

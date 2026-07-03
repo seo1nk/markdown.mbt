@@ -92,12 +92,12 @@ test "colon fence renders chord widget via md_to_html" {
 }
 
 ///|
-/// SSR 経路: ```chord 互換もウィジェットになり、他言語のコードブロックは従来どおり
-test "backtick chord fence renders widget, other langs unaffected" {
+/// SSR 経路: ``` フェンスは言語タグに関わらず通常のコードブロック（::: のみがコード譜）
+test "backtick fences are plain code blocks" {
   let html = md_to_html("```chord\n1 4 5\n```\n\n```js\nconst x = 1;\n```\n")
-  assert_true(html.contains("chord-widget"))
+  assert_true(!html.contains("chord-widget"))
+  assert_true(html.contains("language-chord"))
   assert_true(html.contains("language-js"))
-  assert_true(html.contains("const x = 1;"))
 }
 
 ///|

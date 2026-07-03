@@ -8,11 +8,11 @@ import { parse_to_notes_html, parse_to_playback, chord_css } from "../../chord-l
 
 let installed = false;
 
-// ---- 再生 (v1.6) ----
+// ---- 再生 ----
 // スケジュール(ディグリー→MIDI・拍割り付け)は MoonBit 側の parse_to_playback が
 // 生成し、ここでは Web Audio の発音とカーソルハイライトだけを行う。
 interface PlaybackData {
-  tempo: number;
+  bpm: number;
   totalBeats: number;
   events: { beat: number; dur: number; notes: number[] }[];
   bass: { beat: number; dur: number; note: number }[];
@@ -114,7 +114,7 @@ function startPlayback(widget: HTMLElement, button: HTMLElement): void {
     return;
   }
   if (data.totalBeats <= 0) return;
-  const spb = 60 / (data.tempo || 100);
+  const spb = 60 / (data.bpm || 120);
 
   // 音: AudioContext が使えない環境でもカーソルは動かす
   let ctx: AudioContext | null = null;

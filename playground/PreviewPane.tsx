@@ -52,17 +52,14 @@ export function PreviewPane(props: PreviewPaneProps) {
                   return <RawHtml key={key} data-span={span} html={sanitizeSvg(code)} />;
                 },
               },
-              chord: {
-                render: (code, span, key, mode) => {
-                  // ```chord:code はソース表示（通常ハイライトへフォールスルー）
-                  if (mode === "code") {
-                    return null;
-                  }
-                  // render_widget_html はタブ・キープルダウン込みのウィジェット HTML を返す。
-                  // パース失敗時は行番号つきエラーHTMLにフォールバックするため、
-                  // 不正な DSL 入力でプレビュー全体は壊れない
-                  return <RawHtml key={key} data-span={span} html={chordToHtml(code)} />;
-                },
+              // ::: フェンス（コード譜ブロック）。render_widget_html はタブ・
+              // キープルダウン込みのウィジェット HTML を返す。パース失敗時は
+              // 行番号つきエラーHTMLにフォールバックするため、不正な DSL 入力で
+              // プレビュー全体は壊れない
+              "chord-block": {
+                render: (code, span, key) => (
+                  <RawHtml key={key} data-span={span} html={chordToHtml(code)} />
+                ),
               },
               "moonlight-svg": {
                 render: (code, span, key) => (
