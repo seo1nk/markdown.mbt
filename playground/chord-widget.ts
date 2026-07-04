@@ -15,7 +15,7 @@ interface PlaybackData {
   bpm: number;
   totalBeats: number;
   events: { beat: number; dur: number; notes: number[] }[];
-  bass: { beat: number; dur: number; note: number }[];
+  bass: { beat: number; dur: number; note: number; gain?: number }[];
   cursor: { beat: number; dur: number; cell: number }[];
 }
 
@@ -92,7 +92,9 @@ function scheduleAudio(ctx: AudioContext, data: PlaybackData, spb: number): void
     osc.type = "triangle";
     osc.frequency.value = midiToFreq(b.note);
     const g = ctx.createGain();
-    const peak = 0.8; // ベースは上声より大きめに(ユーザー指定)
+    // ベースは上声より大きめに(ユーザー指定)。gain は複合拍子の
+    // 「ずんちゃっちゃ」の強弱(スケジュール側が決める)
+    const peak = 0.8 * (b.gain ?? 1);
     g.gain.setValueAtTime(0.0001, start);
     g.gain.linearRampToValueAtTime(peak, start + 0.012);
     g.gain.exponentialRampToValueAtTime(0.0001, Math.max(start + 0.05, stop));
