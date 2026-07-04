@@ -1,0 +1,3 @@
+[submodule "chord-language"]
+	path = chord-language
+	url = https://github.com/seo1nk/chord-language.git

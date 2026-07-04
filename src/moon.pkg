@@ -1,4 +1,5 @@
 import {
   "moonbitlang/core/bench",
   "moonbitlang/core/debug",
+  "seo1nk/chord_language" @chord_language,
 }

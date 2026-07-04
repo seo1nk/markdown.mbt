@@ -159,10 +159,15 @@ fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
       serialize_inlines(children, buf)
       buf.write_char('\n')
     }
-    Block::FencedCode(info~, code~, ..) => {
-      // GFM style: always use ``` (remark default)
+    Block::FencedCode(fence_marker~, info~, code~, ..) => {
+      // GFM style: always use ``` (remark default).
+      // fork: colon fences (chord blocks) keep ':' to stay roundtrip-safe
+      let fence_ch = match fence_marker {
+        FenceMarker::Colon => ':'
+        _ => '`'
+      }
       let fence_len = calc_fence_length(code)
-      write_chars(buf, '`', fence_len)
+      write_chars(buf, fence_ch, fence_len)
       if !info.is_empty() {
         buf.write_string(info)
       }
@@ -171,7 +176,7 @@ fn serialize_block(block : Block, buf : StringBuilder) -> Unit {
       if !code.is_empty() && !code.has_suffix("\n") {
         buf.write_char('\n')
       }
-      write_chars(buf, '`', fence_len)
+      write_chars(buf, fence_ch, fence_len)
       buf.write_char('\n')
     }
     Block::IndentedCode(code~, ..) => {

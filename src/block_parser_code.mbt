@@ -12,11 +12,14 @@ fn BlockParser::try_parse_fenced_code(
   }
   let leading = self.read_leading_trivia()
   let fence_char = match self.scanner.peek() {
-    Some(c) if c == '`' || c == '~' => c
+    Some(c) if c == '`' || c == '~' || c == ':' => c
     _ => return None
   }
   let fence_marker = if fence_char == '`' {
     FenceMarker::Backtick
+  } else if fence_char == ':' {
+    // fork extension: ::: opens a chord block (see e2e/chord.spec.ts)
+    FenceMarker::Colon
   } else {
     FenceMarker::Tilde
   }

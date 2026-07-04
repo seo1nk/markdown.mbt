@@ -4,6 +4,18 @@ import type { Root } from "mdast";
 import type { RendererCallbacks } from "./ast-renderer";
 import { SyntaxHighlightEditor, type SyntaxHighlightEditorHandle } from "../frontend/editor/SyntaxHighlightEditor";
 import { PreviewPane } from "./PreviewPane";
+// @ts-ignore -- MoonBit ビルド出力 (型定義なし)
+import { chord_css } from "../_build/js/release/build/seo1nk/chord_language/chord_language.js";
+import { installChordWidgets } from "./chord-widget";
+
+// chord ブロック用 CSS を head に一度だけ注入する
+// (playground にはランタイム CSS 注入機構がないため、ここで直接行う)
+{
+  const chordStyle = document.createElement("style");
+  chordStyle.textContent = chord_css();
+  document.head.appendChild(chordStyle);
+  installChordWidgets();
+}
 
 // IndexedDB for content (reliable async storage)
 const IDB_NAME = "markdown-editor";
@@ -14,74 +26,64 @@ const IDB_KEY = "current";
 const UI_STATE_KEY = "markdown-editor-ui";
 const DEBOUNCE_DELAY = 300;
 
-const initialMarkdown = `# markdown.mbt Playground
+const initialMarkdown = `# コード譜つき Markdown プレイグラウンド
 
-A high-performance Markdown parser written in [MoonBit](https://www.moonbitlang.com/), compiled to WebAssembly.
+ここは**ふつうの Markdown** のエディタです。*斜体*・**太字**・\`インラインコード\`・[リンク](https://github.com/seo1nk/markdown.mbt)・リストや引用はそのまま書けます。
 
-## Features
+そこに \`:::\` だけのフェンスを置くと、中身が**コード譜ブロック**（数字ディグリー記法）としてレンダリングされます:
 
-- **Blazing Fast**: MoonBit compiles to efficient WASM for near-native performance
-- **Syntax Highlighting**: Integrated code highlighting powered by Lezer
-- **Live Preview**: Real-time Markdown rendering as you type
-- **Auto Save**: Your content is automatically saved to browser storage (IndexedDB)
+:::
+---
+key: G
+bpm: 108
+---
+[Aメロ]
+| 1M7 % | 4M7 5 |
+> ひかりの _ さきへ ゆこう
+| 6m7 3m7 | 2-5 1 |
+> きみと あるく この-みち へ
+:::
 
-## Code Example
+試してみてください:
 
-\`\`\`typescript
-// Syntax highlighting works for multiple languages
-function greet(name: string): string {
-  return \`Hello, \${name}!\`;
-}
+- [ ] タブを**コード**に切り替える（ローマ数字 ⇄ 実音）
+- [ ] キーのプルダウンで**移調**する（異名同音も正しく綴られます）
+- [ ] **▶ 再生**を押す（フロントマターの bpm・拍子に従ってコードとベースが鳴ります）
+- [ ] **画像コピー**で表示中の譜面を PNG としてコピーする
+
+## 記法のあらまし
+
+\`1\`〜\`7\` が度数、頭の \`s\`/\`b\` が #/♭。クオリティ（\`m\` \`dim\` \`aug\`）・セブンス（\`7\` \`M7\` \`6\` \`add9\` など）・テンション（括弧内）・スラッシュベース・強調色 \`@red @blue @green\` をつなげて書きます:
+
+:::
+1M7 6m7(9) 2m7 5(b9,13) | s4dim 47/6 b7@blue 1   # ここはコメント
+:::
+
+\`|\` は小節線。1 スロットを分け合う \`-\` グループ、直前のコードを繰り返す \`%\`、無音の \`NC\`、コードを伸ばす空拍 \`_\` もあります:
+
+:::
+---
+key: Eb
+time: 6/8
+---
+[サビ]
+| 4M7 5 | 3m7 6m7 | 2m7-5 1 _ | NC 1 |
+:::
+
+フロントマター（\`key\` / \`bpm\` / \`time\`）は省略可能で、省略時は Key C・120 BPM・4/4 拍子。書き間違えてもだいじょうぶ — エラーは行ごとに場所つきで表示され、正しい行はそのまま描画されます（上のブロックを編集して試してみてください）。
+
+## ふつうのコードブロックはそのまま
+
+従来の \`\` \`\`\` \`\` フェンスは通常のコードブロックのままで、コード譜にはなりません:
+
+\`\`\`js
+// ::: の中身は MoonBit 製のパーサが処理します（この JS はただの表示例）
+const html = render_widget_html(source);
 \`\`\`
-
-\`\`\`rust
-fn main() {
-    println!("Hello from Rust!");
-}
-\`\`\`
-
-## Markdown Support
-
-- **Bold** and *italic* text
-- [Links](https://github.com/mizchi/markdown.mbt)
-- \`inline code\`
-- > Blockquotes
-
-## SVG Preview
-
-Edit the SVG below and see live preview:
-
-\`\`\`svg
-<svg width="200" height="100" xmlns="http://www.w3.org/2000/svg">
-  <rect x="10" y="10" width="80" height="80" fill="#4a90d9" rx="8"/>
-  <circle cx="150" cy="50" r="40" fill="#e74c3c"/>
-  <text x="100" y="95" text-anchor="middle" fill="#333" font-size="12">Edit me!</text>
-</svg>
-\`\`\`
-
-## Moonlight SVG Editor
-
-Interactive SVG editing with [Moonlight](https://github.com/mizchi/moonlight):
-
-\`\`\`moonlight-svg
-<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
-  <rect x="50" y="50" width="120" height="80" fill="#3498db" rx="10"/>
-  <circle cx="280" cy="90" r="50" fill="#e74c3c"/>
-  <polygon points="200,200 150,280 250,280" fill="#2ecc71"/>
-</svg>
-\`\`\`
-
-## Interactive Task List
-
-Click the checkboxes below - they update the source in real-time!
-
-- [ ] Try clicking this checkbox
-- [x] This one is already checked
-- [ ] Interactive editing from preview
 
 ---
 
-Source: [github.com/mizchi/markdown.mbt](https://github.com/mizchi/markdown.mbt)
+記法の詳細: [chord-language/docs/chord.md](https://github.com/seo1nk/chord-language/blob/main/docs/chord.md) ／ このフォーク: [seo1nk/markdown.mbt](https://github.com/seo1nk/markdown.mbt)（本家: [mizchi/markdown.mbt](https://github.com/mizchi/markdown.mbt)）
 `;
 
 // IndexedDB helpers

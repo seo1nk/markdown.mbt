@@ -8,6 +8,8 @@ import {
   type RendererOptions,
 } from "./ast-renderer";
 import { MoonlightEditor } from "./MoonlightEditor";
+// @ts-ignore -- MoonBit ビルド出力 (型定義なし)
+import { render_widget_html as chordToHtml } from "../_build/js/release/build/seo1nk/chord_language/chord_language.js";
 
 interface PreviewRenderState {
   ast: Root;
@@ -49,6 +51,15 @@ export function PreviewPane(props: PreviewPaneProps) {
                   }
                   return <RawHtml key={key} data-span={span} html={sanitizeSvg(code)} />;
                 },
+              },
+              // ::: フェンス（コード譜ブロック）。render_widget_html はタブ・
+              // キープルダウン込みのウィジェット HTML を返す。パース失敗時は
+              // 行番号つきエラーHTMLにフォールバックするため、不正な DSL 入力で
+              // プレビュー全体は壊れない
+              "chord-block": {
+                render: (code, span, key) => (
+                  <RawHtml key={key} data-span={span} html={chordToHtml(code)} />
+                ),
               },
               "moonlight-svg": {
                 render: (code, span, key) => (

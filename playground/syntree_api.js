@@ -12,7 +12,7 @@ import {
   highlight_css,
   highlight_bash,
   highlight_rust,
-} from "../_build/js/release/build/syntree_api/syntree_api.js";
+} from "../_build/js/release/build/mizchi/markdown/syntree_api/syntree_api.js";
 
 export {
   highlight_typescript as highlightTypeScript,

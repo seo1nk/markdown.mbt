@@ -40,10 +40,11 @@ pub(all) enum EmphasisMarker {
 } derive(Eq, Debug)
 
 ///|
-/// Fence marker for code blocks: ``` or ~~~
+/// Fence marker for code blocks: ``` or ~~~ (fork: ::: for chord blocks)
 pub(all) enum FenceMarker {
   Backtick // ```
   Tilde // ~~~
+  Colon // ::: (chord-language fork extension)
 } derive(Eq, Debug)
 
 ///|

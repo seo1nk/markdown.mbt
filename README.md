@@ -1,4 +1,37 @@
-# @mizchi/markdown
+# @mizchi/markdown (chord fork)
+
+> **このリポジトリは [mizchi/markdown.mbt](https://github.com/mizchi/markdown.mbt) のフォークです。**
+> Markdown に `:::` コード譜ブロック（数字ディグリー記法 DSL）を追加しています。
+> DSL 本体は submodule の [chord-language](https://github.com/seo1nk/chord-language)（仕様: `chord-language/docs/chord.md`、API: `chord-language/docs/api.md`）。
+>
+> ## セットアップ（このリポジトリだけで動きます）
+>
+> ```bash
+> git clone --recursive https://github.com/seo1nk/markdown.mbt.git
+> cd markdown.mbt
+> pnpm install
+> moon build --target js --release   # 本体 + submodule (chord-language) を moon.work 経由でまとめてビルド
+> pnpm vite                          # playground を起動
+> ```
+>
+> （clone 済みで submodule が空の場合は `git submodule update --init`）
+>
+> ローカル依存は `moon.work` ワークスペース（members: `.` と `./chord-language`）で解決しており、成果物は `_build/js/release/build/<module>/...` にモジュール名で名前空間化される。
+>
+> ### フォーク差分の概要
+>
+> - `src/types.mbt` / `src/block_parser_code.mbt` / `src/serializer.mbt`: `:::` フェンス（`FenceMarker::Colon`）
+> - `src/renderer.mbt`: Colon フェンスを chord-language のウィジェット HTML として SSR
+> - `src/api/json_ast.mbt`: Colon フェンスを mdast `lang: "chord-block"` にマップ
+> - `playground/`: chord ハンドラ・クライアントランタイム（chord-widget.ts）・CSS 注入
+> - `e2e/chord.spec.ts`: コード譜ブロックの E2E
+>
+> ### ライセンス
+>
+> - 本リポジトリ（フォーク本体とフォークによる変更分）: **MIT**（原著作者 [mizchi](https://github.com/mizchi) の LICENSE・著作権表記をそのまま保持）
+> - submodule の [chord-language](https://github.com/seo1nk/chord-language): **Apache-2.0**（独立した別リポジトリ。ライセンスは同リポジトリの LICENSE を参照）
+>
+> 以下は本家の README。
 
 CST-based incremental Markdown parser for JavaScript/MoonBit.
 

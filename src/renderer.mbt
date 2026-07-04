@@ -35,7 +35,14 @@ fn render_block_html(
       buf.write_string(">\n")
     }
     Block::ThematicBreak(..) => buf.write_string("<hr>\n")
-    Block::FencedCode(info~, code~, ..) => {
+    Block::FencedCode(fence_marker~, info~, code~, ..) => {
+      // fork: ::: フェンスはコード譜ウィジェットとして描画
+      // （タブ・キープルダウン込みの単一ソース HTML。chord-language 側が生成）
+      if fence_marker is FenceMarker::Colon {
+        buf.write_string(@chord_language.render_widget_html(code))
+        buf.write_char('\n')
+        return
+      }
       if info.is_empty() {
         buf.write_string("<pre><code>")
       } else {
