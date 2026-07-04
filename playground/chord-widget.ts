@@ -16,6 +16,8 @@ interface PlaybackData {
   totalBeats: number;
   events: { beat: number; dur: number; notes: number[] }[];
   bass: { beat: number; dur: number; note: number; gain?: number }[];
+  // 複合拍子(6/8 等)の「ちゃっちゃ」= 上声和音の短い刻み
+  stabs?: { beat: number; dur: number; notes: number[] }[];
   cursor: { beat: number; dur: number; cell: number }[];
 }
 
@@ -82,6 +84,26 @@ function scheduleAudio(ctx: AudioContext, data: PlaybackData, spb: number): void
       g.connect(master);
       osc.start(start);
       osc.stop(stop + 0.01); // ゲインが 0 に達してから停止(クリック防止)
+    }
+  }
+  // スタブ: 複合拍子の弱拍(ちゃっちゃ)。和音を短くプラッキーに刻む。
+  // 持続和音より強いアタックで立ち上げ、すぐ減衰させてリズムを出す
+  for (const s of data.stabs ?? []) {
+    const start = t0 + s.beat * spb;
+    const stop = start + s.dur * spb - 0.03;
+    const peak = 0.55 / Math.sqrt(Math.max(1, s.notes.length));
+    for (const note of s.notes) {
+      const osc = ctx.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.value = midiToFreq(note);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.linearRampToValueAtTime(peak, start + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, Math.max(start + 0.06, stop));
+      osc.connect(g);
+      g.connect(master);
+      osc.start(start);
+      osc.stop(stop + 0.01);
     }
   }
   // ベーストラック: 拍ごとにプラッキーに刻む(素早い減衰で次の打と重ならない)
