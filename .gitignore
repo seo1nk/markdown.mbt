@@ -11,3 +11,5 @@ playwright-report
 test-results/
 .playwright-mcp/
 _build
+dist-lib/
+dist-playground/
