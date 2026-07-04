@@ -15,5 +15,5 @@ test('initial load shows preview', async ({ page }) => {
   });
   console.log('Preview text:', previewText);
 
-  expect(previewText).toContain('markdown.mbt');
+  expect(previewText).toContain('Markdown プレイグラウンド');
 });

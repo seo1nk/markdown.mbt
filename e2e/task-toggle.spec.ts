@@ -31,10 +31,10 @@ test.describe('Task List Toggle', () => {
 
     if (isCheckedBefore) {
       // Was checked, now unchecked -> should have [ ]
-      expect(editorText).toContain('[ ] Try clicking this checkbox');
+      expect(editorText).toContain('[ ] タブを');
     } else {
       // Was unchecked, now checked -> should have [x]
-      expect(editorText).toContain('[x] Try clicking this checkbox');
+      expect(editorText).toContain('[x] タブを');
     }
   });
 
