@@ -291,19 +291,6 @@ export function installChordWidgets(): void {
       }
       return;
     }
-    // 記法チートシートの開閉(表示は chord_css の data-chord-help ルールが行う)
-    const helpBtn = target?.closest?.(".chord-help") as HTMLElement | null;
-    if (helpBtn) {
-      const widget = helpBtn.closest(".chord-widget") as HTMLElement | null;
-      if (widget) {
-        if (widget.dataset.chordHelp === "open") {
-          delete widget.dataset.chordHelp;
-        } else {
-          widget.dataset.chordHelp = "open";
-        }
-      }
-      return;
-    }
     const tab = target?.closest?.(".chord-tab") as HTMLElement | null;
     if (!tab) return;
     const widget = tab.closest(".chord-widget") as HTMLElement | null;

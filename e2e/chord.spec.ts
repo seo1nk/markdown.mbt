@@ -325,13 +325,15 @@ test.describe("Chord block preview", () => {
     await expect(degree).toContainText("#IV");
     await expect(page.locator(".preview .chord-error")).toHaveCount(0);
 
-    // ? ボタンでチートシートが開閉する
-    const cheat = widget.locator(".chord-cheatsheet");
+    // ヘッダの ? ボタンでチートシートモーダルが開閉する
+    const cheat = page.locator(".chord-help-modal .chord-cheatsheet");
     await expect(cheat).not.toBeVisible();
-    await widget.locator(".chord-help").click();
+    await page.locator(".chord-help-button").click();
     await expect(cheat).toBeVisible();
     await expect(cheat).toContainText("ディグリー 1〜7");
-    await widget.locator(".chord-help").click();
+    await expect(cheat.locator(".chord-cheat-example")).toContainText("| 2m7 5(9) | 1M7 % |");
+    // オーバーレイのクリックで閉じる
+    await page.locator(".chord-help-overlay").click({ position: { x: 5, y: 5 } });
     await expect(cheat).not.toBeVisible();
   });
 });
