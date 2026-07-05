@@ -13,3 +13,4 @@ test-results/
 _build
 dist-lib/
 dist-playground/
+.deploy/

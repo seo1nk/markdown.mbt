@@ -10,6 +10,7 @@
     "bench:literal:core": "moon bench --target js -p mizchi/markdown -f bench_renderer_literal.mbt",
     "prepublishOnly": "pnpm run build:editor",
     "build:dist": "pnpm run build:moon && vite build --base ./ --outDir ../dist-playground --emptyOutDir && node scripts/build-dist-lib.mjs",
+    "deploy:works": "pnpm run build:dist && node scripts/stage-deploy.mjs && wrangler deploy -c wrangler.works.jsonc",
     "test": "vitest run"
   },
   "imports": {
