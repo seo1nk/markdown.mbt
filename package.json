@@ -9,6 +9,7 @@
     "bench:literal": "node --experimental-strip-types e2e/literal-benchmark.ts",
     "bench:literal:core": "moon bench --target js -p mizchi/markdown -f bench_renderer_literal.mbt",
     "prepublishOnly": "pnpm run build:editor",
+    "build:dist": "pnpm run build:moon && vite build --base ./ --outDir ../dist-playground --emptyOutDir && node scripts/build-dist-lib.mjs",
     "test": "vitest run"
   },
   "imports": {
@@ -66,7 +67,10 @@
     "./highlight/rust": {
       "import": "./dist/frontend/highlight/languages/rust.js",
       "types": "./dist/frontend/highlight/languages/rust.d.ts"
-    }
+    },
+    "./dist-lib/api": "./dist-lib/api.js",
+    "./dist-lib/chord-language": "./dist-lib/chord_language.js",
+    "./dist-lib/chord-widget": "./dist-lib/chord-widget.js"
   },
   "keywords": [
     "markdown",
@@ -90,6 +94,7 @@
     "@types/mdast": "^4.0.4",
     "@types/unist": "^3.0.3",
     "axe-core": "^4.11.4",
+    "esbuild": "^0.28.1",
     "playwright": "^1.58.2",
     "preact": "^10.28.4",
     "puppeteer": "^24.38.0",
