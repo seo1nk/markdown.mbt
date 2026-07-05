@@ -18,6 +18,14 @@
 >
 > ローカル依存は `moon.work` ワークスペース（members: `.` と `./chord-language`）で解決しており、成果物は `_build/js/release/build/<module>/...` にモジュール名で名前空間化される。
 >
+> ### デプロイ（kseo.ink/works/md-chord）
+>
+> プレイグラウンドは静的アセットのワーカー（`wrangler.works.jsonc`、名前 `md-chord-playground`）として、本サイト（asobi = kseo.ink）とは**独立に**デプロイする。Workers Routes の `kseo.ink/works/md-chord*` が asobi の Custom Domain より優先される。
+>
+> ```bash
+> pnpm run deploy:works   # build:dist → .deploy/works/md-chord へステージ → wrangler deploy
+> ```
+>
 > ### フォーク差分の概要
 >
 > - `src/types.mbt` / `src/block_parser_code.mbt` / `src/serializer.mbt`: `:::` フェンス（`FenceMarker::Colon`）

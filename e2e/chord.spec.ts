@@ -145,7 +145,7 @@ test.describe("Chord block preview", () => {
 
     const error = page.locator(".preview .chord-error");
     await expect(error).toBeVisible({ timeout: 5000 });
-    await expect(error.locator(".chord-error-msg")).toContainText("line 2");
+    await expect(error.locator(".chord-error-msg")).toContainText("2 行目");
     await expect(error.locator(".chord-error-src")).toContainText("8x 5");
     await expect(page.locator(".preview")).toContainText("before text");
     await expect(page.locator(".preview")).toContainText("after text");
@@ -176,8 +176,8 @@ test.describe("Chord block preview", () => {
     await expect(score).toContainText("IVM7");
     const error = score.locator(".chord-error");
     await expect(error).toBeVisible();
-    await expect(error.locator(".chord-error-msg")).toContainText("line 2");
-    await expect(error.locator(".chord-error-msg")).toContainText("position 0");
+    await expect(error.locator(".chord-error-msg")).toContainText("2 行目");
+    await expect(error.locator(".chord-error-msg")).toContainText("位置 0");
     await expect(error.locator(".chord-error-src")).toContainText("8x 5");
   });
 
@@ -309,5 +309,31 @@ test.describe("Chord block preview", () => {
     await play.click();
     await expect(play).toHaveText("■ 停止");
     await expect(play).toHaveText("▶ 再生", { timeout: 4000 });
+  });
+
+  test("hash sharp and maj7 parse; help button toggles the cheatsheet", async ({ page }) => {
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill(":::\n1maj7 #4 | 2m7(b9,#11) 5\n:::\n");
+    await page.waitForTimeout(500);
+
+    const widget = page.locator(".preview .chord-widget");
+    await expect(widget).toBeVisible();
+    // maj7 は M7 に正規化、# はシャープとして表示される(エラーなし)
+    const degree = page.locator(".preview .chord-panel--degree .chord-score");
+    await expect(degree).toContainText("IM7");
+    await expect(degree).toContainText("#IV");
+    await expect(page.locator(".preview .chord-error")).toHaveCount(0);
+
+    // ヘッダの ? ボタンでチートシートモーダルが開閉する
+    const cheat = page.locator(".chord-help-modal .chord-cheatsheet");
+    await expect(cheat).not.toBeVisible();
+    await page.locator(".chord-help-button").click();
+    await expect(cheat).toBeVisible();
+    await expect(cheat).toContainText("ディグリー 1〜7");
+    await expect(cheat.locator(".chord-cheat-example")).toContainText("| 2m7 5(9) | 1M7 % |");
+    // オーバーレイのクリックで閉じる
+    await page.locator(".chord-help-overlay").click({ position: { x: 5, y: 5 } });
+    await expect(cheat).not.toBeVisible();
   });
 });

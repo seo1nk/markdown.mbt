@@ -1,0 +1,24 @@
+/**
+ * コード譜プレイグラウンドを kseo.ink/works/md-chord* で配信する
+ * 静的アセットのみのワーカー(フォーク独自。upstream の wrangler.jsonc とは別物)。
+ * asobi(kseo.ink 本体)とは独立にデプロイする。
+ *
+ * デプロイ: pnpm run deploy:works
+ * (kseo.ink ゾーンの Custom Domain を持つ asobi ワーカーより、
+ *  パスが具体的なこのルートが優先される)
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "md-chord-playground",
+  "compatibility_date": "2026-07-01",
+  "workers_dev": false,
+  "assets": {
+    "directory": ".deploy",
+  },
+  "routes": [
+    {
+      "pattern": "kseo.ink/works/md-chord*",
+      "zone_name": "kseo.ink",
+    },
+  ],
+}

@@ -5,14 +5,21 @@ import type { RendererCallbacks } from "./ast-renderer";
 import { SyntaxHighlightEditor, type SyntaxHighlightEditorHandle } from "../frontend/editor/SyntaxHighlightEditor";
 import { PreviewPane } from "./PreviewPane";
 // @ts-ignore -- MoonBit ビルド出力 (型定義なし)
-import { chord_css } from "../_build/js/release/build/seo1nk/chord_language/chord_language.js";
+import { chord_css, chord_cheatsheet_html } from "../_build/js/release/build/seo1nk/chord_language/chord_language.js";
 import { installChordWidgets } from "./chord-widget";
+import { RawHtml } from "./ast-renderer";
 
 // chord ブロック用 CSS を head に一度だけ注入する
 // (playground にはランタイム CSS 注入機構がないため、ここで直接行う)
 {
   const chordStyle = document.createElement("style");
-  chordStyle.textContent = chord_css();
+  // チートシートモーダル(ヘッダの ? ボタンから開く)のスタイルは playground 側の責務
+  chordStyle.textContent =
+    chord_css() +
+    `
+.chord-help-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); z-index: 1000; display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px; }
+.chord-help-modal { background: var(--bg-primary, #fff); color: var(--text-primary, inherit); border: 1px solid var(--border-color, #8886); border-radius: 10px; padding: 1.2em 1.4em; max-width: 660px; width: 100%; max-height: calc(100vh - 96px); overflow-y: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
+`;
   document.head.appendChild(chordStyle);
   installChordWidgets();
 }
@@ -50,13 +57,14 @@ bpm: 108
 - [ ] キーのプルダウンで**移調**する（異名同音も正しく綴られます）
 - [ ] **▶ 再生**を押す（フロントマターの bpm・拍子に従ってコードとベースが鳴ります）
 - [ ] **画像コピー**で表示中の譜面を PNG としてコピーする
+- [ ] 画面右上の **?** ボタンで記法チートシートを開く
 
 ## 記法のあらまし
 
-\`1\`〜\`7\` が度数、頭の \`s\`/\`b\` が #/♭。クオリティ（\`m\` \`dim\` \`aug\`）・セブンス（\`7\` \`M7\` \`6\` \`add9\` など）・テンション（括弧内）・スラッシュベース・強調色 \`@red @blue @green\` をつなげて書きます:
+\`1\`〜\`7\` が度数、シャープは \`#\`（\`s\` でも可）、フラットは \`b\`。クオリティ（\`m\` \`dim\` \`aug\`）・セブンス（\`7\` \`M7\`/\`maj7\` \`6\` \`add9\` など）・テンション（括弧内）・スラッシュベース・強調色 \`@red @blue @green\` をつなげて書きます:
 
 :::
-1M7 6m7(9) 2m7 5(b9,13) | s4dim 47/6 b7@blue 1   # ここはコメント
+1maj7 6m7(9) 2m7 5(b9,#11) | #4dim 47/6 b7@blue 1
 :::
 
 \`|\` は小節線。1 スロットを分け合う \`-\` グループ、直前のコードを繰り返す \`%\`、無音の \`NC\`、コードを伸ばす空拍 \`_\` もあります:
@@ -304,6 +312,7 @@ function App() {
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   })());
   const [saveStatus, setSaveStatus] = createSignal<"saved" | "saving" | "idle">("idle");
+  const [showChordHelp, setShowChordHelp] = createSignal(false);
   const [viewMode, setViewMode] = createSignal<ViewMode>(initialUIState.viewMode);
   const [editorMode, setEditorMode] = createSignal<EditorMode>(initialUIState.editorMode);
 
@@ -694,20 +703,45 @@ function App() {
               </span>
             </div>
             <div class="toolbar-actions">
-              <button onClick={toggleDark} class="theme-toggle" title="Toggle dark mode">
-                {isDark() ? "☀️" : "🌙"}
-              </button>
               <a
                 href="https://github.com/mizchi/markdown.mbt"
                 target="_blank"
                 rel="noopener noreferrer"
+                class="credit-link"
+                title="Original project by mizchi (MIT License)"
+              >
+                Based on mizchi/markdown.mbt (MIT)
+              </a>
+              <button
+                onClick={() => setShowChordHelp(!showChordHelp())}
+                class="theme-toggle chord-help-button"
+                title="コード譜の記法チートシート"
+              >
+                ?
+              </button>
+              <button onClick={toggleDark} class="theme-toggle" title="Toggle dark mode">
+                {isDark() ? "☀️" : "🌙"}
+              </button>
+              <a
+                href="https://github.com/seo1nk/markdown.mbt"
+                target="_blank"
+                rel="noopener noreferrer"
                 class="github-link"
-                title="View on GitHub"
+                title="View on GitHub (fork)"
               >
                 <Icon svg={GITHUB_ICON} />
               </a>
             </div>
           </header>
+          <Show when={showChordHelp}>
+            {() => (
+              <div class="chord-help-overlay" onClick={() => setShowChordHelp(false)}>
+                <div class="chord-help-modal" onClick={(e: Event) => e.stopPropagation()}>
+                  <RawHtml html={chord_cheatsheet_html()} />
+                </div>
+              </div>
+            )}
+          </Show>
           <div class={containerClass}>
             {/* Editor panel - visibility controlled by CSS class */}
             <div class="editor">
