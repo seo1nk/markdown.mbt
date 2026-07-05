@@ -703,6 +703,15 @@ function App() {
               </span>
             </div>
             <div class="toolbar-actions">
+              <a
+                href="https://github.com/mizchi/markdown.mbt"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="credit-link"
+                title="Original project by mizchi (MIT License)"
+              >
+                Based on mizchi/markdown.mbt (MIT)
+              </a>
               <button
                 onClick={() => setShowChordHelp(!showChordHelp())}
                 class="theme-toggle chord-help-button"
@@ -714,11 +723,11 @@ function App() {
                 {isDark() ? "☀️" : "🌙"}
               </button>
               <a
-                href="https://github.com/mizchi/markdown.mbt"
+                href="https://github.com/seo1nk/markdown.mbt"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="github-link"
-                title="View on GitHub"
+                title="View on GitHub (fork)"
               >
                 <Icon svg={GITHUB_ICON} />
               </a>

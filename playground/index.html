@@ -127,6 +127,25 @@
       gap: 12px;
     }
 
+    /* 原作クレジット (mizchi/markdown.mbt, MIT) */
+    .credit-link {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .credit-link:hover {
+      color: var(--text-primary);
+      text-decoration: underline;
+    }
+
+    @media (max-width: 640px) {
+      .credit-link {
+        display: none;
+      }
+    }
+
     .save-status {
       font-size: 12px;
       color: var(--text-secondary);
