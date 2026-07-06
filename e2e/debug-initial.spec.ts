@@ -15,5 +15,5 @@ test('initial load shows preview', async ({ page }) => {
   });
   console.log('Preview text:', previewText);
 
-  expect(previewText).toContain('Markdown プレイグラウンド');
+  expect(previewText).toContain('Markdown エディタ');
 });

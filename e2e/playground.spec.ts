@@ -25,7 +25,7 @@ test.describe("Playground Editor", () => {
     await expect(preview).toBeVisible();
 
     // Check initial content is rendered
-    await expect(preview).toContainText("コード譜つき Markdown プレイグラウンド");
+    await expect(preview).toContainText('"Chord Block" がある Markdown エディタ');
   });
 
   test("typing text updates preview", async ({ page }) => {
