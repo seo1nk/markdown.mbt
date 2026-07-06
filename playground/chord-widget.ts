@@ -143,9 +143,28 @@ function startPlayback(widget: HTMLElement, button: HTMLElement): void {
   // 音: AudioContext が使えない環境でもカーソルは動かす
   let ctx: AudioContext | null = null;
   try {
+    // iOS: サイレントスイッチ(マナーモード)中も鳴らせるよう、
+    // オーディオセッションを「再生」用途として宣言する(対応環境のみ)
+    const session = (navigator as { audioSession?: { type: string } }).audioSession;
+    if (session) {
+      try {
+        session.type = "playback";
+      } catch {
+        // 未対応の値などは無視
+      }
+    }
     ctx = new AudioContext();
-    void ctx.resume().catch(() => {});
-    scheduleAudio(ctx, data, spb);
+    // モバイルでは生成直後が suspended のことがある。resume の完了を待ってから
+    // スケジュールしないと、止まった時計(currentTime)基準で予約されて無音になる
+    const audioCtx = ctx;
+    const schedule = () => {
+      if (player && player.ctx === audioCtx) scheduleAudio(audioCtx, data, spb);
+    };
+    if (ctx.state === "suspended") {
+      ctx.resume().then(schedule, schedule);
+    } else {
+      scheduleAudio(ctx, data, spb);
+    }
   } catch {
     ctx = null;
   }
