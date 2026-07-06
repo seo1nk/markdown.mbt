@@ -1,5 +1,5 @@
 // コード譜ウィジェットのクライアントランタイム。
-// タブ切替（ディグリー ⇄ コード）とキープルダウンによる移調を
+// タブ切替（ディグリー ⇄ コード）・移調・再生・画像コピーを
 // document への委譲イベントで処理する。ウィジェット HTML 自体は
 // chord-language の render_widget_html が生成する（単一ソース）ため、
 // SSR ページでもライブプレビューでも、このモジュールを一度読み込むだけで動く。
@@ -31,6 +31,15 @@ interface Player {
 
 let player: Player | null = null;
 
+// 音作りの定数(値を変えると鳴り方が変わる。経緯は git ログ参照)
+const LEAD_IN = 0.08; // 再生開始までの猶予(秒)
+const MASTER_GAIN = 0.9;
+const PAD_GAP = 0.06; // 持続和音どうしの隙間(秒。次のコードと重ねない)
+const PAD_RELEASE = 0.09; // 持続和音のリリース(秒)
+const PAD_PEAK = 0.28; // 持続和音のピーク(÷√音数)
+const STAB_PEAK = 0.55; // スタブのピーク(÷√音数。パッドより強いアタックでリズムを出す)
+const BASS_PEAK = 0.8; // ベースのピーク(上声より大きめ・ユーザー指定)
+
 function stopPlayback(): void {
   if (!player) return;
   for (const t of player.timers) clearTimeout(t);
@@ -46,102 +55,95 @@ function midiToFreq(n: number): number {
   return 440 * Math.pow(2, (n - 69) / 12);
 }
 
-const LEAD_IN = 0.08; // 再生開始までの猶予(秒)
+// 三角波 1 音ぶんのオシレータ + ゲインを master につないで返す
+function voice(ctx: AudioContext, master: GainNode, note: number): { osc: OscillatorNode; gain: GainNode } {
+  const osc = ctx.createOscillator();
+  osc.type = "triangle";
+  osc.frequency.value = midiToFreq(note);
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(master);
+  return { osc, gain };
+}
 
-function scheduleAudio(ctx: AudioContext, data: PlaybackData, spb: number): void {
-  const t0 = ctx.currentTime + LEAD_IN;
-  const master = ctx.createGain();
-  master.gain.value = 0.9;
-  master.connect(ctx.destination);
-  // 次のコードと重ならないよう、発音は次の開始より少し手前で完全に終える
-  const GAP = 0.06; // コード間の無音(秒)
-  const RELEASE = 0.09; // リリース(秒)
+// プラッキーな 1 音(アタック後すぐ減衰しきる。ベースとスタブで共用)
+function pluck(
+  ctx: AudioContext,
+  master: GainNode,
+  note: number,
+  start: number,
+  stop: number,
+  peak: number,
+  attack: number,
+  minDecay: number,
+): void {
+  const { osc, gain } = voice(ctx, master, note);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.linearRampToValueAtTime(peak, start + attack);
+  gain.gain.exponentialRampToValueAtTime(0.0001, Math.max(start + minDecay, stop));
+  osc.start(start);
+  osc.stop(stop + 0.01); // ゲインが 0 に達してから停止(クリック防止)
+}
+
+// 上声の持続和音(減衰 → 保持 → リリース。値のジャンプなし = クリックノイズなし)
+function schedulePads(ctx: AudioContext, master: GainNode, data: PlaybackData, t0: number, spb: number): void {
   for (const ev of data.events) {
     const start = t0 + ev.beat * spb;
-    const stop = start + ev.dur * spb - GAP; // 実際の消音完了時刻
+    const stop = start + ev.dur * spb - PAD_GAP; // 実際の消音完了時刻
     const attackEnd = start + 0.02;
-    const peak = 0.28 / Math.sqrt(Math.max(1, ev.notes.length));
+    const peak = PAD_PEAK / Math.sqrt(Math.max(1, ev.notes.length));
     const sustain = peak * 0.5;
     // 減衰の終点とリリース開始点(短い音でも順序が崩れないようクランプ)
-    const decayEnd = Math.min(
-      start + Math.max(0.1, (stop - start) * 0.6),
-      stop - RELEASE,
-    );
+    const decayEnd = Math.min(start + Math.max(0.1, (stop - start) * 0.6), stop - PAD_RELEASE);
     for (const note of ev.notes) {
-      const osc = ctx.createOscillator();
-      osc.type = "triangle";
-      osc.frequency.value = midiToFreq(note);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.linearRampToValueAtTime(peak, attackEnd);
+      const { osc, gain } = voice(ctx, master, note);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.linearRampToValueAtTime(peak, attackEnd);
       if (decayEnd > attackEnd) {
-        // 減衰 → その値のまま保持 → 滑らかにリリース(値のジャンプなし)
-        g.gain.exponentialRampToValueAtTime(sustain, decayEnd);
-        g.gain.setValueAtTime(sustain, Math.max(decayEnd, stop - RELEASE));
+        gain.gain.exponentialRampToValueAtTime(sustain, decayEnd);
+        gain.gain.setValueAtTime(sustain, Math.max(decayEnd, stop - PAD_RELEASE));
       }
-      g.gain.exponentialRampToValueAtTime(0.0001, stop);
-      osc.connect(g);
-      g.connect(master);
-      osc.start(start);
-      osc.stop(stop + 0.01); // ゲインが 0 に達してから停止(クリック防止)
-    }
-  }
-  // スタブ: 複合拍子の弱拍(ちゃっちゃ)。和音を短くプラッキーに刻む。
-  // 持続和音より強いアタックで立ち上げ、すぐ減衰させてリズムを出す
-  for (const s of data.stabs ?? []) {
-    const start = t0 + s.beat * spb;
-    const stop = start + s.dur * spb - 0.03;
-    const peak = 0.55 / Math.sqrt(Math.max(1, s.notes.length));
-    for (const note of s.notes) {
-      const osc = ctx.createOscillator();
-      osc.type = "triangle";
-      osc.frequency.value = midiToFreq(note);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, start);
-      g.gain.linearRampToValueAtTime(peak, start + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, Math.max(start + 0.06, stop));
-      osc.connect(g);
-      g.connect(master);
+      gain.gain.exponentialRampToValueAtTime(0.0001, stop);
       osc.start(start);
       osc.stop(stop + 0.01);
     }
   }
-  // ベーストラック: 拍ごとにプラッキーに刻む(素早い減衰で次の打と重ならない)
-  for (const b of data.bass) {
-    const start = t0 + b.beat * spb;
-    const stop = start + b.dur * spb - 0.03;
-    const osc = ctx.createOscillator();
-    osc.type = "triangle";
-    osc.frequency.value = midiToFreq(b.note);
-    const g = ctx.createGain();
-    // ベースは上声より大きめに(ユーザー指定)。gain は複合拍子の
-    // 「ずんちゃっちゃ」の強弱(スケジュール側が決める)
-    const peak = 0.8 * (b.gain ?? 1);
-    g.gain.setValueAtTime(0.0001, start);
-    g.gain.linearRampToValueAtTime(peak, start + 0.012);
-    g.gain.exponentialRampToValueAtTime(0.0001, Math.max(start + 0.05, stop));
-    osc.connect(g);
-    g.connect(master);
-    osc.start(start);
-    osc.stop(stop + 0.01);
+}
+
+// スタブ: 複合拍子の弱拍(ちゃっちゃ)。和音を短くプラッキーに刻む
+function scheduleStabs(ctx: AudioContext, master: GainNode, data: PlaybackData, t0: number, spb: number): void {
+  for (const s of data.stabs ?? []) {
+    const start = t0 + s.beat * spb;
+    const stop = start + s.dur * spb - 0.03;
+    const peak = STAB_PEAK / Math.sqrt(Math.max(1, s.notes.length));
+    for (const note of s.notes) {
+      pluck(ctx, master, note, start, stop, peak, 0.01, 0.06);
+    }
   }
 }
 
-function startPlayback(widget: HTMLElement, button: HTMLElement): void {
-  stopPlayback();
-  const src = widget.dataset.chordSrc ?? "";
-  const key = widget.dataset.chordKey ?? "C";
-  let data: PlaybackData;
-  try {
-    data = JSON.parse(parse_to_playback(src, key));
-  } catch {
-    return;
+// ベーストラック: 拍ごとにプラッキーに刻む(gain は「ずんちゃっちゃ」の強弱)
+function scheduleBass(ctx: AudioContext, master: GainNode, data: PlaybackData, t0: number, spb: number): void {
+  for (const b of data.bass) {
+    const start = t0 + b.beat * spb;
+    const stop = start + b.dur * spb - 0.03;
+    pluck(ctx, master, b.note, start, stop, BASS_PEAK * (b.gain ?? 1), 0.012, 0.05);
   }
-  if (data.totalBeats <= 0) return;
-  const spb = 60 / (data.bpm || 120);
+}
 
-  // 音: AudioContext が使えない環境でもカーソルは動かす
-  let ctx: AudioContext | null = null;
+function scheduleAudio(ctx: AudioContext, data: PlaybackData, spb: number): void {
+  const t0 = ctx.currentTime + LEAD_IN;
+  const master = ctx.createGain();
+  master.gain.value = MASTER_GAIN;
+  master.connect(ctx.destination);
+  schedulePads(ctx, master, data, t0, spb);
+  scheduleStabs(ctx, master, data, t0, spb);
+  scheduleBass(ctx, master, data, t0, spb);
+}
+
+// AudioContext を用意し、再生可能になり次第スケジュールする。
+// 使えない環境では null を返す(カーソル表示だけは動かす)
+function setupAudio(data: PlaybackData, spb: number): AudioContext | null {
   try {
     // iOS: サイレントスイッチ(マナーモード)中も鳴らせるよう、
     // オーディオセッションを「再生」用途として宣言する(対応環境のみ)
@@ -153,26 +155,27 @@ function startPlayback(widget: HTMLElement, button: HTMLElement): void {
         // 未対応の値などは無視
       }
     }
-    ctx = new AudioContext();
+    const ctx = new AudioContext();
     // モバイルでは生成直後が suspended のことがある。resume の完了を待ってから
     // スケジュールしないと、止まった時計(currentTime)基準で予約されて無音になる
-    const audioCtx = ctx;
     const schedule = () => {
-      if (player && player.ctx === audioCtx) scheduleAudio(audioCtx, data, spb);
+      if (player && player.ctx === ctx) scheduleAudio(ctx, data, spb);
     };
     if (ctx.state === "suspended") {
       ctx.resume().then(schedule, schedule);
     } else {
       scheduleAudio(ctx, data, spb);
     }
+    return ctx;
   } catch {
-    ctx = null;
+    return null;
   }
+}
 
-  // カーソル: 表示中のタブのセルをハイライト
-  const active = widget.dataset.chordActive === "notes" ? "notes" : "degree";
+// カーソル: 表示中のタブのセルを再生位置に合わせてハイライトする
+function scheduleCursor(widget: HTMLElement, data: PlaybackData, spb: number): { cells: HTMLElement[]; timers: number[] } {
   const cells = Array.from(
-    widget.querySelectorAll<HTMLElement>(`.chord-panel--${active} .chord-cell`),
+    widget.querySelectorAll<HTMLElement>(`.chord-panel--${activePanel(widget)} .chord-cell`),
   );
   const timers: number[] = [];
   for (const cur of data.cursor) {
@@ -187,13 +190,35 @@ function startPlayback(widget: HTMLElement, button: HTMLElement): void {
     );
   }
   timers.push(
-    window.setTimeout(
-      () => stopPlayback(),
-      (LEAD_IN + data.totalBeats * spb) * 1000 + 200,
-    ),
+    window.setTimeout(() => stopPlayback(), (LEAD_IN + data.totalBeats * spb) * 1000 + 200),
   );
+  return { cells, timers };
+}
+
+function startPlayback(widget: HTMLElement, button: HTMLElement): void {
+  stopPlayback();
+  const src = widget.dataset.chordSrc ?? "";
+  const key = widget.dataset.chordKey ?? "C";
+  let data: PlaybackData;
+  try {
+    data = JSON.parse(parse_to_playback(src, key));
+  } catch {
+    return;
+  }
+  if (data.totalBeats <= 0) return;
+  const spb = 60 / (data.bpm || 120);
   button.textContent = "■ 停止";
-  player = { widget, ctx, timers, cells, button };
+  // setupAudio 内の schedule ガードが player.ctx を参照するため、先に player を確定させる
+  const { cells, timers } = scheduleCursor(widget, data, spb);
+  player = { widget, ctx: null, timers, cells, button };
+  player.ctx = setupAudio(data, spb);
+}
+
+// ---- 画像コピー ----
+
+// 表示中のタブ名("degree" | "notes")
+function activePanel(widget: HTMLElement): string {
+  return widget.dataset.chordActive === "notes" ? "notes" : "degree";
 }
 
 // 表示中の譜面 (.chord-score) を PNG Blob にする。
@@ -256,8 +281,7 @@ function downloadBlob(blob: Blob, filename: string): void {
 }
 
 async function copyScoreImage(widget: HTMLElement, button: HTMLElement): Promise<void> {
-  const active = widget.dataset.chordActive === "notes" ? "notes" : "degree";
-  const score = widget.querySelector<HTMLElement>(`.chord-panel--${active} .chord-score`);
+  const score = widget.querySelector<HTMLElement>(`.chord-panel--${activePanel(widget)} .chord-score`);
   if (!score) return;
   const original = button.textContent;
   try {
@@ -283,59 +307,78 @@ async function copyScoreImage(widget: HTMLElement, button: HTMLElement): Promise
   }, 1600);
 }
 
+// ---- イベント委譲 ----
+
+// el から最も近い .chord-widget(自分がウィジェット外なら null)
+function widgetOf(el: HTMLElement): HTMLElement | null {
+  return el.closest(".chord-widget") as HTMLElement | null;
+}
+
+function handleClick(ev: MouseEvent): void {
+  const target = ev.target as HTMLElement | null;
+  if (!target?.closest) return;
+
+  const playBtn = target.closest(".chord-play") as HTMLElement | null;
+  if (playBtn) {
+    const widget = widgetOf(playBtn);
+    if (widget) {
+      if (player && player.widget === widget) {
+        stopPlayback();
+      } else {
+        startPlayback(widget, playBtn);
+      }
+    }
+    return;
+  }
+
+  const copyBtn = target.closest(".chord-copy-img") as HTMLElement | null;
+  if (copyBtn) {
+    const widget = widgetOf(copyBtn);
+    if (widget) {
+      void copyScoreImage(widget, copyBtn);
+    }
+    return;
+  }
+
+  // タブ切替(パネルの表示切替は chord_css の data-chord-active ルールが行う)
+  const tab = target.closest(".chord-tab") as HTMLElement | null;
+  if (!tab) return;
+  const widget = widgetOf(tab);
+  const mode = tab.dataset.chordTab;
+  if (!widget || !mode) return;
+  widget.dataset.chordActive = mode;
+  for (const el of widget.querySelectorAll<HTMLElement>(".chord-tab")) {
+    el.classList.toggle("chord-tab--active", el.dataset.chordTab === mode);
+  }
+}
+
+// キープルダウン: 選択キーで notes パネルを再レンダリング
+// (移調ロジックは MoonBit 側の parse_to_notes_html を呼ぶ — 二重実装しない)
+function handleKeyChange(ev: Event): void {
+  const select = ev.target as HTMLSelectElement | null;
+  if (!select?.classList?.contains("chord-key-select")) return;
+  const widget = widgetOf(select);
+  if (!widget) return;
+  if (player && player.widget === widget) {
+    stopPlayback();
+  }
+  const src = widget.dataset.chordSrc ?? "";
+  widget.dataset.chordKey = select.value;
+  const panel = widget.querySelector(".chord-panel--notes");
+  if (panel) {
+    panel.innerHTML = parse_to_notes_html(src, select.value);
+  }
+}
+
+///
+/// コード譜ウィジェットのランタイムを組み込む(ページに 1 回だけ呼ぶ)。
+/// 表示用 CSS(chord_css)の注入もここで行う
 export function installChordWidgets(): void {
   if (installed) return;
   installed = true;
-
-  // タブ切替 / 画像コピー / 再生
-  document.addEventListener("click", (ev) => {
-    const target = ev.target as HTMLElement | null;
-    const playBtn = target?.closest?.(".chord-play") as HTMLElement | null;
-    if (playBtn) {
-      const widget = playBtn.closest(".chord-widget") as HTMLElement | null;
-      if (widget) {
-        if (player && player.widget === widget) {
-          stopPlayback();
-        } else {
-          startPlayback(widget, playBtn);
-        }
-      }
-      return;
-    }
-    const copyBtn = target?.closest?.(".chord-copy-img") as HTMLElement | null;
-    if (copyBtn) {
-      const widget = copyBtn.closest(".chord-widget") as HTMLElement | null;
-      if (widget) {
-        void copyScoreImage(widget, copyBtn);
-      }
-      return;
-    }
-    const tab = target?.closest?.(".chord-tab") as HTMLElement | null;
-    if (!tab) return;
-    const widget = tab.closest(".chord-widget") as HTMLElement | null;
-    const mode = tab.dataset.chordTab;
-    if (!widget || !mode) return;
-    widget.dataset.chordActive = mode;
-    for (const el of widget.querySelectorAll<HTMLElement>(".chord-tab")) {
-      el.classList.toggle("chord-tab--active", el.dataset.chordTab === mode);
-    }
-  });
-
-  // キープルダウン: 選択キーで notes パネルを再レンダリング
-  // (移調ロジックは MoonBit 側の parse_to_notes_html を呼ぶ — 二重実装しない)
-  document.addEventListener("change", (ev) => {
-    const select = ev.target as HTMLSelectElement | null;
-    if (!select?.classList?.contains("chord-key-select")) return;
-    const widget = select.closest(".chord-widget") as HTMLElement | null;
-    if (!widget) return;
-    if (player && player.widget === widget) {
-      stopPlayback();
-    }
-    const src = widget.dataset.chordSrc ?? "";
-    widget.dataset.chordKey = select.value;
-    const panel = widget.querySelector(".chord-panel--notes");
-    if (panel) {
-      panel.innerHTML = parse_to_notes_html(src, select.value);
-    }
-  });
+  const style = document.createElement("style");
+  style.textContent = chord_css();
+  document.head.appendChild(style);
+  document.addEventListener("click", handleClick);
+  document.addEventListener("change", handleKeyChange);
 }

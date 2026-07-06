@@ -5,23 +5,21 @@ import type { RendererCallbacks } from "./ast-renderer";
 import { SyntaxHighlightEditor, type SyntaxHighlightEditorHandle } from "../frontend/editor/SyntaxHighlightEditor";
 import { PreviewPane } from "./PreviewPane";
 // @ts-ignore -- MoonBit ビルド出力 (型定義なし)
-import { chord_css, chord_cheatsheet_html } from "../_build/js/release/build/seo1nk/chord_language/chord_language.js";
+import { chord_cheatsheet_html } from "../_build/js/release/build/seo1nk/chord_language/chord_language.js";
 import { installChordWidgets } from "./chord-widget";
 import { RawHtml } from "./ast-renderer";
 
-// chord ブロック用 CSS を head に一度だけ注入する
-// (playground にはランタイム CSS 注入機構がないため、ここで直接行う)
+// コード譜ウィジェットのランタイム + 表示 CSS を組み込み、
+// チートシートモーダル(ヘッダの ? ボタンから開く)のスタイルだけを
+// playground 側の責務としてここで注入する
 {
-  const chordStyle = document.createElement("style");
-  // チートシートモーダル(ヘッダの ? ボタンから開く)のスタイルは playground 側の責務
-  chordStyle.textContent =
-    chord_css() +
-    `
+  installChordWidgets();
+  const modalStyle = document.createElement("style");
+  modalStyle.textContent = `
 .chord-help-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); z-index: 1000; display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px; }
 .chord-help-modal { background: var(--bg-primary, #fff); color: var(--text-primary, inherit); border: 1px solid var(--border-color, #8886); border-radius: 10px; padding: 1.2em 1.4em; max-width: 660px; width: 100%; max-height: calc(100vh - 96px); overflow-y: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
 `;
-  document.head.appendChild(chordStyle);
-  installChordWidgets();
+  document.head.appendChild(modalStyle);
 }
 
 // IndexedDB for content (reliable async storage)
@@ -719,7 +717,7 @@ function App() {
               </a>
               <button
                 onClick={() => setShowChordHelp(!showChordHelp())}
-                class="theme-toggle chord-help-button"
+                class="chord-help-button"
                 title="コード譜の記法チートシート"
               >
                 <Icon svg={HELP_ICON} />
