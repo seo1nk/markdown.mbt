@@ -18,9 +18,28 @@ import { RawHtml } from "./ast-renderer";
   modalStyle.textContent = `
 .chord-help-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.35); z-index: 1000; display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px; }
 .chord-help-modal { background: var(--bg-primary, #fff); color: var(--text-primary, inherit); border: 1px solid var(--border-color, #8886); border-radius: 10px; padding: 1.2em 1.4em; max-width: 660px; width: 100%; max-height: calc(100vh - 96px); overflow-y: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
+.chord-help-section-title { font-weight: 700; font-size: 0.92em; margin: 0 0 0.7em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border-color, #8886); }
+.chord-help-modal .chord-help-section-title:not(:first-child) { margin-top: 1.5em; }
 `;
   document.head.appendChild(modalStyle);
 }
+
+// Markdown 自体の基本記法のチートシート。Markdown を知らない人向けの
+// 最小限の一覧(表示スタイルはコード譜チートシート .chord-cheatsheet を流用)
+const MARKDOWN_CHEATSHEET_HTML = `<div class="chord-cheatsheet">
+<code># 見出し</code><span>見出し（# の数 1〜6 で段階が下がる。# の後に半角スペース）</span>
+<code>（空行）</code><span>段落の区切り（空行を挟まないと前の行と繋がったまま）</span>
+<code>**太字** *斜体*</code><span>太字・斜体</span>
+<code>- 項目</code><span>箇条書き（行頭に - と半角スペース）</span>
+<code>1. 項目</code><span>番号つきリスト</span>
+<code>- [ ] やること</code><span>チェックリスト（[x] で完了）</span>
+<code>[表示する文字](URL)</code><span>リンク</span>
+<code>![説明](画像のURL)</code><span>画像</span>
+<code>&gt; 引用文</code><span>引用（行頭に &gt;）</span>
+<code>\`コード\`</code><span>インラインコード</span>
+<code>\`\`\`</code><span>コードブロック（\`\`\` だけの行で上下を挟む）</span>
+<code>---</code><span>区切りの横線（単独行。前後に空行）</span>
+</div>`;
 
 // IndexedDB for content (reliable async storage)
 const IDB_NAME = "markdown-editor";
@@ -808,6 +827,9 @@ function App() {
             {() => (
               <div class="chord-help-overlay" onClick={() => setShowChordHelp(false)}>
                 <div class="chord-help-modal" onClick={(e: Event) => e.stopPropagation()}>
+                  <div class="chord-help-section-title">Markdown の基本</div>
+                  <RawHtml html={MARKDOWN_CHEATSHEET_HTML} />
+                  <div class="chord-help-section-title">コード譜ブロック（::: フェンス）</div>
                   <RawHtml html={chord_cheatsheet_html()} />
                 </div>
               </div>
