@@ -151,6 +151,50 @@ function isMobile(): boolean {
   return window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
+// 埋め込みモード (?embed=1): 親ページが同一オリジンの iframe として開き、
+// postMessage で本文をやり取りする。本文の永続化は親の責務なので、
+// IndexedDB への保存とタブ間同期は行わない。
+// プロトコル:
+//   child -> parent: { type: "md-chord-editor:ready" }            初期化要求
+//   parent -> child: { type: "md-chord-editor:init", content }    初期本文
+//   child -> parent: { type: "md-chord-editor:change", content }  本文変更(即時)
+const EMBED = new URLSearchParams(window.location.search).has("embed");
+
+// 親ページに初期本文を要求する。親側のリスナー登録とタイミングが前後しても
+// よいように、init が届くまで ready を再送する。親が応答しない場合は空文書で開く
+function requestParentContent(): Promise<string> {
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      clearTimeout(timer);
+      clearInterval(retry);
+      window.removeEventListener("message", onMessage);
+    };
+    const timer = window.setTimeout(() => {
+      cleanup();
+      resolve("");
+    }, 5000);
+    const sendReady = () => {
+      window.parent.postMessage({ type: "md-chord-editor:ready" }, window.location.origin);
+    };
+    const retry = window.setInterval(sendReady, 200);
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.source !== window.parent) return;
+      if (e.data?.type !== "md-chord-editor:init") return;
+      cleanup();
+      resolve(typeof e.data.content === "string" ? e.data.content : "");
+    };
+    window.addEventListener("message", onMessage);
+    sendReady();
+  });
+}
+
+// 本文の変更を親ページへ即時通知する(デバウンスしない。親のフォーム送信が
+// 最新の本文を取りこぼさないようにするため)
+function notifyParentChange(content: string): void {
+  if (!EMBED) return;
+  window.parent.postMessage({ type: "md-chord-editor:change", content }, window.location.origin);
+}
+
 // UI State helpers (localStorage for sync access)
 interface UIState {
   viewMode: "split" | "editor" | "preview";
@@ -439,14 +483,19 @@ function App() {
       let content = initialMarkdown;
       let timestamp = 0;
 
-      try {
-        const idbData = await loadFromIDB();
-        if (idbData && idbData.content) {
-          content = idbData.content;
-          timestamp = idbData.timestamp;
+      if (EMBED) {
+        // 埋め込み時は親ページの本文が正。空文書(新規投稿)もそのまま使う
+        content = await requestParentContent();
+      } else {
+        try {
+          const idbData = await loadFromIDB();
+          if (idbData && idbData.content) {
+            content = idbData.content;
+            timestamp = idbData.timestamp;
+          }
+        } catch {
+          // ignore IndexedDB load errors and fall back to initial content
         }
-      } catch {
-        // ignore IndexedDB load errors and fall back to initial content
       }
 
       const parsedAst = parse(content);
@@ -465,6 +514,7 @@ function App() {
 
   // Handle visibility change for tab sync
   onMount(() => {
+    if (EMBED) return;
     async function handleVisibilityChange() {
       if (document.visibilityState !== "visible") return;
       if (isSaving || hasModified) return;
@@ -492,6 +542,7 @@ function App() {
     const debounced = debouncedSource();
     if (!isInitialized()) return;
     if (!hasModified) return;
+    if (EMBED) return; // 埋め込み時の永続化は親の責務(notifyParentChange で通知済み)
 
     isSaving = true;
     setSaveStatus("saving");
@@ -532,6 +583,7 @@ function App() {
     // Update source and AST synchronously (bypass debounce for immediate feedback)
     hasModified = true;
     setSource(newSource);
+    notifyParentChange(newSource);
     setAst(parse(newSource));
 
     // Sync editor text with targeted update using span
@@ -582,6 +634,7 @@ function App() {
       // Update source only (skip AST re-parse to prevent re-render and focus loss)
       hasModified = true;
       setSource(newSource);
+      notifyParentChange(newSource);
       // Don't call setAst() here - AST will be updated on next text editor change
 
       // Sync editor text
@@ -645,6 +698,7 @@ function App() {
     hasModified = true;
     // Update source immediately for responsive input
     setSource(newSource);
+    notifyParentChange(newSource);
 
     // Debounce AST parsing - preview doesn't need to update on every keystroke
     clearTimeout(astParseTimer);
@@ -711,10 +765,13 @@ function App() {
                   <Icon svg={SIMPLE_ICON} />
                 </button>
               </div>
-              <span class={saveStatusClass}>
-                {saveStatus() === "saving" && "Saving..."}
-                {saveStatus() === "saved" && "Saved"}
-              </span>
+              {/* 埋め込み時の保存はフォーム側の責務なので Saved 表示は出さない */}
+              {!EMBED && (
+                <span class={saveStatusClass}>
+                  {saveStatus() === "saving" && "Saving..."}
+                  {saveStatus() === "saved" && "Saved"}
+                </span>
+              )}
             </div>
             <div class="toolbar-actions">
               <a
