@@ -384,6 +384,8 @@ function App() {
   const [cursorPosition, setCursorPosition] = createSignal(initialUIState.cursorPosition);
   const [isInitialized, setIsInitialized] = createSignal(false);
   const [isDark, setIsDark] = createSignal((() => {
+    // 埋め込みは基本ライトモード(トグルでの切り替えは可能だが、その場限り)
+    if (EMBED) return false;
     const saved = localStorage.getItem("theme");
     if (saved) return saved === "dark";
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -434,7 +436,10 @@ function App() {
   createEffect(() => {
     const dark = isDark();
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-    localStorage.setItem("theme", dark ? "dark" : "light");
+    // 埋め込みでは保存しない(単体プレイグラウンドのテーマ設定を上書きしないため)
+    if (!EMBED) {
+      localStorage.setItem("theme", dark ? "dark" : "light");
+    }
   });
 
   const handleViewModeChange = (mode: ViewMode) => {
