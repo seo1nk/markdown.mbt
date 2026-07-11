@@ -221,13 +221,62 @@ function activePanel(widget: HTMLElement): string {
   return widget.dataset.chordActive === "notes" ? "notes" : "degree";
 }
 
+// ---- 譜面のフィット ----
+// 譜面(.chord-score)が親パネルの幅からはみ出すとき(主にモバイル)、
+// パネルの font-size を縮めて譜面全体を横幅に収める。レイアウトは em 基準
+// なので、フォントサイズの縮小がほぼそのまま譜面全体の縮小になる。
+// 画像コピーは scoreToBlob 側で縮小を解除して常に等倍で書き出す。
+const FIT_MIN_SCALE = 0.5; // これ以上は縮めない(以降は横スクロールに任せる)
+
+function fitScore(widget: HTMLElement): void {
+  const panel = widget.querySelector<HTMLElement>(`.chord-panel--${activePanel(widget)}`);
+  const score = panel?.querySelector<HTMLElement>(".chord-score");
+  if (!panel || !score) return;
+  panel.style.fontSize = ""; // 等倍に戻して自然幅を測る
+  const avail = panel.clientWidth;
+  if (avail <= 0) return;
+  // 罫線など px 固定の要素があり縮小は完全な線形ではないため、
+  // 1 回で収まらなければもう一段だけ詰める
+  let scale = 1;
+  for (let i = 0; i < 2 && score.scrollWidth > avail && scale > FIT_MIN_SCALE; i++) {
+    scale = Math.max(FIT_MIN_SCALE, scale * (avail / score.scrollWidth));
+    panel.style.fontSize = `${scale}em`;
+  }
+}
+
+let fitObserver: ResizeObserver | null = null;
+const fitWatched = new WeakSet<Element>();
+
+// root 配下(root 自身を含む)のウィジェットをフィット監視の対象にする
+function watchChordWidgets(root: Element | Document): void {
+  if (!fitObserver) return;
+  if (root instanceof Element && root.classList.contains("chord-widget") && !fitWatched.has(root)) {
+    fitWatched.add(root);
+    fitObserver.observe(root);
+  }
+  for (const w of root.querySelectorAll(".chord-widget")) {
+    if (!fitWatched.has(w)) {
+      fitWatched.add(w);
+      fitObserver.observe(w);
+    }
+  }
+}
+
 // 表示中の譜面 (.chord-score) を PNG Blob にする。
 // 外部ライブラリを使わず、譜面 HTML + chord_css を SVG の foreignObject に
 // 埋め込んで canvas に描く (スタイルが自前 CSS で完結しているため成立する)。
 // 画像は貼り付け先を選ばないよう、ページのテーマによらず常にライトテーマで書き出す。
 async function scoreToBlob(score: HTMLElement): Promise<Blob> {
+  // フィット縮小(親パネルの font-size)を一時的に解除し、自然サイズで測る
+  // (画像はモバイルでも常に等倍で書き出す)。測定と HTML の採取は同期なので
+  // 画面にちらつきは出ない
+  const fitPanel = score.parentElement;
+  const savedFit = fitPanel?.style.fontSize ?? "";
+  if (fitPanel) fitPanel.style.fontSize = "";
   const width = Math.ceil(score.scrollWidth);
   const height = Math.ceil(score.scrollHeight);
+  const scoreHtml = score.outerHTML;
+  if (fitPanel) fitPanel.style.fontSize = savedFit;
   const pad = 16;
   const totalW = width + pad * 2;
   const totalH = height + pad * 2;
@@ -245,7 +294,7 @@ async function scoreToBlob(score: HTMLElement): Promise<Blob> {
     `<foreignObject width="100%" height="100%">` +
     `<div xmlns="http://www.w3.org/1999/xhtml" style="${wrapperStyle}">` +
     `<style>${chord_css()}</style>` +
-    score.outerHTML +
+    scoreHtml +
     `</div></foreignObject></svg>`;
   const img = new Image();
   img.decoding = "sync";
@@ -350,6 +399,8 @@ function handleClick(ev: MouseEvent): void {
   for (const el of widget.querySelectorAll<HTMLElement>(".chord-tab")) {
     el.classList.toggle("chord-tab--active", el.dataset.chordTab === mode);
   }
+  // 切り替わったパネルは非表示中に測れていないのでここでフィットする
+  fitScore(widget);
 }
 
 // キープルダウン: 選択キーで notes パネルを再レンダリング
@@ -368,6 +419,8 @@ function handleKeyChange(ev: Event): void {
   if (panel) {
     panel.innerHTML = parse_to_notes_html(src, select.value);
   }
+  // 音名の長さでスコア幅が変わることがあるので測り直す
+  fitScore(widget);
 }
 
 ///
@@ -377,8 +430,28 @@ export function installChordWidgets(): void {
   if (installed) return;
   installed = true;
   const style = document.createElement("style");
-  style.textContent = chord_css();
+  // FIT_MIN_SCALE まで縮めても収まらない極端に長い譜面は横スクロールで逃がす
+  style.textContent = chord_css() + "\n.chord-panel { overflow-x: auto; }";
   document.head.appendChild(style);
   document.addEventListener("click", handleClick);
   document.addEventListener("change", handleKeyChange);
+  // ウィジェットの幅変化(初期配置・画面回転・リサイズ)と、あとから
+  // 挿入されるウィジェット(記事表示・ライブプレビュー)を監視してフィットする
+  if (typeof ResizeObserver !== "undefined" && typeof MutationObserver !== "undefined") {
+    fitObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        fitScore(entry.target as HTMLElement);
+      }
+    });
+    watchChordWidgets(document);
+    new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const n of m.addedNodes) {
+          if (n instanceof Element) {
+            watchChordWidgets(n);
+          }
+        }
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  }
 }
