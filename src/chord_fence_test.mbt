@@ -1,4 +1,5 @@
 ///| Fork extension: ::: fences open a chord block (parsed as FencedCode with
+
 ///| FenceMarker::Colon). See e2e/chord.spec.ts for the playground integration.
 
 ///|

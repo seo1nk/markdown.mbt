@@ -14,13 +14,13 @@
 /// Interface for code evaluators
 pub trait Evaluator {
   /// Evaluate code and return output
-  eval(Self, source : String, context : EvalContext) -> CellOutput
+  fn eval(Self, source : String, context : EvalContext) -> CellOutput
 
   /// Get the language this evaluator handles
-  language(Self) -> String
+  fn language(Self) -> String
 
   /// Check if this evaluator can handle the given language
-  can_handle(Self, lang : String) -> Bool
+  fn can_handle(Self, lang : String) -> Bool
 }
 
 // =============================================================================

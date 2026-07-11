@@ -1,5 +1,5 @@
 import {
-  "mizchi/markdown/highlight_common" @highlight_common,
+  "mizchi/markdown/highlight_common",
   "mizchi/syntree/rust",
 }
 

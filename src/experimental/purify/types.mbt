@@ -153,6 +153,9 @@ pub(all) enum RemovedKind {
 } derive(Eq, Debug)
 
 ///|
-pub impl Show for RemovedKind with output(self : RemovedKind, logger : &Logger) -> Unit {
+pub impl Show for RemovedKind with fn output(
+  self : RemovedKind,
+  logger : &Logger,
+) -> Unit {
   logger.write_string(@debug.to_string(self))
 }

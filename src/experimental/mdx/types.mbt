@@ -198,7 +198,7 @@ pub fn MdxMetadata::is_empty(self : MdxMetadata) -> Bool {
 }
 
 ///|
-pub impl Show for ImportSpecifier with output(
+pub impl Show for ImportSpecifier with fn output(
   self : ImportSpecifier,
   logger : &Logger,
 ) -> Unit {
@@ -206,12 +206,12 @@ pub impl Show for ImportSpecifier with output(
 }
 
 ///|
-pub impl Show for ExportKind with output(self : ExportKind, logger : &Logger) -> Unit {
+pub impl Show for ExportKind with fn output(self : ExportKind, logger : &Logger) -> Unit {
   logger.write_string(@debug.to_string(self))
 }
 
 ///|
-pub impl Show for MdxAttrValue with output(
+pub impl Show for MdxAttrValue with fn output(
   self : MdxAttrValue,
   logger : &Logger,
 ) -> Unit {
@@ -219,7 +219,7 @@ pub impl Show for MdxAttrValue with output(
 }
 
 ///|
-pub impl Show for MdxAttribute with output(
+pub impl Show for MdxAttribute with fn output(
   self : MdxAttribute,
   logger : &Logger,
 ) -> Unit {
@@ -227,12 +227,15 @@ pub impl Show for MdxAttribute with output(
 }
 
 ///|
-pub impl Show for MdxBlock with output(self : MdxBlock, logger : &Logger) -> Unit {
+pub impl Show for MdxBlock with fn output(self : MdxBlock, logger : &Logger) -> Unit {
   logger.write_string(@debug.to_string(self))
 }
 
 ///|
-pub impl Show for MdxMetadata with output(self : MdxMetadata, logger : &Logger) -> Unit {
+pub impl Show for MdxMetadata with fn output(
+  self : MdxMetadata,
+  logger : &Logger,
+) -> Unit {
   logger.write_string(@debug.to_string(self))
 }
 

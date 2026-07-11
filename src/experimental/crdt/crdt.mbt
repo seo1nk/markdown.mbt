@@ -17,12 +17,12 @@ pub(all) struct LogicalId {
 } derive(Eq, Debug)
 
 ///|
-pub impl Show for AgentId with output(self : AgentId, logger : &Logger) -> Unit {
+pub impl Show for AgentId with fn output(self : AgentId, logger : &Logger) -> Unit {
   logger.write_string(@debug.to_string(self))
 }
 
 ///|
-pub impl Show for LogicalId with output(self : LogicalId, logger : &Logger) -> Unit {
+pub impl Show for LogicalId with fn output(self : LogicalId, logger : &Logger) -> Unit {
   logger.write_string(@debug.to_string(self))
 }
 

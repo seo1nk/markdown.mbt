@@ -216,7 +216,7 @@ pub fn InlineDirective::new(source : String) -> InlineDirective {
 }
 
 ///|
-pub impl Show for InlineDirective with output(
+pub impl Show for InlineDirective with fn output(
   self : InlineDirective,
   logger : &Logger,
 ) -> Unit {
@@ -224,7 +224,7 @@ pub impl Show for InlineDirective with output(
 }
 
 ///|
-pub impl Show for OutputFormat with output(
+pub impl Show for OutputFormat with fn output(
   self : OutputFormat,
   logger : &Logger,
 ) -> Unit {

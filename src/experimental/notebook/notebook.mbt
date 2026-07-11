@@ -194,7 +194,7 @@ pub(all) enum NotebookError {
 } derive(Debug)
 
 ///|
-pub impl Show for NotebookError with output(
+pub impl Show for NotebookError with fn output(
   self : NotebookError,
   logger : &Logger,
 ) -> Unit {
