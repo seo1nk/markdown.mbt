@@ -245,5 +245,14 @@ fn render_inline_literal(
       write_marker(buf, "[^" + label + "]")
       buf.write_string("</a></sup>")
     }
+    Inline::ChordInline(src~, ..) => {
+      // fork: inline chord. The literal view keeps the raw `:token:` glyphs
+      // (visible-text invariant); the colons are dimmed like other markers.
+      buf.write_string("<span class=\"md-chord-inline\">")
+      write_marker(buf, ":")
+      escape_html_into(buf, src)
+      write_marker(buf, ":")
+      buf.write_string("</span>")
+    }
   }
 }

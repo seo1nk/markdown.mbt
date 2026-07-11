@@ -508,6 +508,30 @@ fn parse_segment_simple(
           }
         }
       }
+      Some(':') => {
+        // fork: inline chord `:2m7:` (see InlineParser::try_parse_inline_chord)
+        let chord_parser = InlineParser::new(scanner, wikilinks~)
+        match chord_parser.try_parse_inline_chord(pos) {
+          Some(chord) => {
+            // Flush text buffer
+            if !text_buf.is_empty() {
+              result.push(
+                Inline::Text(
+                  content=text_buf.to_string(),
+                  span=Span::new(offset + text_start, offset + pos),
+                ),
+              )
+              text_buf.reset()
+            }
+            result.push(chord)
+            text_start = scanner.pos
+          }
+          None => {
+            text_buf.write_char(':')
+            scanner.advance(1)
+          }
+        }
+      }
       Some('!') =>
         // Try to parse image
         if char_is(scanner.peek_at(1), '[') {

@@ -339,4 +339,20 @@ test.describe("Chord block preview", () => {
     await page.locator(".chord-help-overlay").click({ position: { x: 5, y: 5 } });
     await expect(cheat).not.toBeVisible();
   });
+
+  test("inline chord :2m7: renders as a degree span in preview", async ({ page }) => {
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill("ここで :2m7: から :b3@red: へ。比は 3:4:5 のままで、:smile: も平文。\n");
+    await page.waitForTimeout(500);
+
+    // 有効なコード記号だけがディグリー表示の span になる
+    const chords = page.locator(".preview .chord-inline");
+    await expect(chords).toHaveCount(2);
+    await expect(chords.first()).toHaveText("IIm7");
+    await expect(chords.nth(1)).toHaveText("♭III");
+    // 散文中のコロン(比・絵文字ショートコード風)は誤爆しない
+    await expect(page.locator(".preview")).toContainText("3:4:5");
+    await expect(page.locator(".preview")).toContainText(":smile:");
+  });
 });

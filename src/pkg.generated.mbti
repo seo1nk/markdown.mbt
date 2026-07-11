@@ -103,6 +103,7 @@ pub impl Show for EmphasisMarker
 pub(all) enum FenceMarker {
   Backtick
   Tilde
+  Colon
 } derive(Eq, @debug.Debug)
 pub impl Show for FenceMarker
 
@@ -147,6 +148,7 @@ pub(all) enum Inline {
   RefImage(alt~ : String, label~ : String, span~ : Span)
   HtmlInline(html~ : String, span~ : Span)
   FootnoteReference(label~ : String, span~ : Span)
+  ChordInline(src~ : String, span~ : Span)
 }
 
 pub(all) struct LinkDefinition {

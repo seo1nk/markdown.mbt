@@ -90,12 +90,12 @@ pub fn Trivia::empty() -> Trivia {
 }
 
 ///|
-pub impl Show for Span with output(self : Span, logger : &Logger) -> Unit {
+pub impl Show for Span with fn output(self : Span, logger : &Logger) -> Unit {
   logger.write_string(@debug.to_string(self))
 }
 
 ///|
-pub impl Show for EmphasisMarker with output(
+pub impl Show for EmphasisMarker with fn output(
   self : EmphasisMarker,
   logger : &Logger,
 ) -> Unit {
@@ -103,12 +103,15 @@ pub impl Show for EmphasisMarker with output(
 }
 
 ///|
-pub impl Show for FenceMarker with output(self : FenceMarker, logger : &Logger) -> Unit {
+pub impl Show for FenceMarker with fn output(
+  self : FenceMarker,
+  logger : &Logger,
+) -> Unit {
   logger.write_string(@debug.to_string(self))
 }
 
 ///|
-pub impl Show for BulletMarker with output(
+pub impl Show for BulletMarker with fn output(
   self : BulletMarker,
   logger : &Logger,
 ) -> Unit {
@@ -116,7 +119,7 @@ pub impl Show for BulletMarker with output(
 }
 
 ///|
-pub impl Show for OrderedDelimiter with output(
+pub impl Show for OrderedDelimiter with fn output(
   self : OrderedDelimiter,
   logger : &Logger,
 ) -> Unit {
@@ -124,7 +127,7 @@ pub impl Show for OrderedDelimiter with output(
 }
 
 ///|
-pub impl Show for HeadingStyle with output(
+pub impl Show for HeadingStyle with fn output(
   self : HeadingStyle,
   logger : &Logger,
 ) -> Unit {
@@ -132,7 +135,7 @@ pub impl Show for HeadingStyle with output(
 }
 
 ///|
-pub impl Show for Trivia with output(self : Trivia, logger : &Logger) -> Unit {
+pub impl Show for Trivia with fn output(self : Trivia, logger : &Logger) -> Unit {
   logger.write_string(@debug.to_string(self))
 }
 
@@ -323,6 +326,10 @@ pub(all) enum Inline {
   HtmlInline(html~ : String, span~ : Span)
   /// Footnote reference [^label] (GFM)
   FootnoteReference(label~ : String, span~ : Span)
+  /// Inline chord `:2m7:` (chord-language fork extension).
+  /// `src` is the raw token between the colons, already validated as a
+  /// single chord symbol by the inline parser (@chord_language.parse_chord).
+  ChordInline(src~ : String, span~ : Span)
 }
 
 ///|
@@ -333,12 +340,12 @@ pub(all) enum HardBreakStyle {
 } derive(Eq, Debug)
 
 ///|
-pub impl Show for TableAlign with output(self : TableAlign, logger : &Logger) -> Unit {
+pub impl Show for TableAlign with fn output(self : TableAlign, logger : &Logger) -> Unit {
   logger.write_string(@debug.to_string(self))
 }
 
 ///|
-pub impl Show for HardBreakStyle with output(
+pub impl Show for HardBreakStyle with fn output(
   self : HardBreakStyle,
   logger : &Logger,
 ) -> Unit {

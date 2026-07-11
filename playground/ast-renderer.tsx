@@ -12,6 +12,8 @@ import type {
 import type { Position } from "unist";
 // @ts-ignore - no type declarations for syntree_api.js
 import { highlight } from "./syntree_api.js";
+// @ts-ignore -- MoonBit ビルド出力 (型定義なし)
+import { inline_chord_html } from "../_build/js/release/build/seo1nk/chord_language/chord_language.js";
 
 // =============================================================================
 // SVG Sanitizer
@@ -434,6 +436,18 @@ function renderTableCell(
 
 // Inline renderer
 export function renderInline(inline: PhrasingContent, key?: string | number): JSX.Element | string | null {
+  // fork: インラインコード譜 :2m7:(mdast にない独自ノードのため switch の前に処理)。
+  // ディグリー表示の HTML は chord-language の inline_chord_html が単一ソースで生成し、
+  // パース不能なトークンは元の :token: を平文で表示する
+  if ((inline.type as string) === "chordInline") {
+    const src = (inline as unknown as { value?: string }).value ?? "";
+    const html = inline_chord_html(src);
+    return html ? (
+      <RawHtmlSpan key={key} html={html} />
+    ) : (
+      <span key={key}>{`:${src}:`}</span>
+    );
+  }
   switch (inline.type) {
     case "text":
       // Check for newline (soft break representation)

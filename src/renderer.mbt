@@ -383,6 +383,16 @@ fn render_inline_html(
       buf.write_char(']')
     }
     Inline::HtmlInline(html~, ..) => buf.write_string(html)
+    Inline::ChordInline(src~, ..) => {
+      // fork: インラインコード譜。パーサが単一コードとして検証済みだが、
+      // 万一 HTML 化できない場合は元テキストのまま出す(防御的フォールバック)
+      let html = @chord_language.inline_chord_html(src)
+      if html.is_empty() {
+        buf.write_string(escape_html(":" + src + ":"))
+      } else {
+        buf.write_string(html)
+      }
+    }
     Inline::SoftBreak(..) => buf.write_char('\n')
     Inline::HardBreak(..) => buf.write_string("<br>\n")
     Inline::FootnoteReference(label~, ..) => {

@@ -174,5 +174,11 @@ fn serialize_inline(inline : Inline, buf : StringBuilder) -> Unit {
       buf.write_string(label)
       buf.write_char(']')
     }
+    // fork: inline chords keep their `:token:` source form
+    Inline::ChordInline(src~, ..) => {
+      buf.write_char(':')
+      buf.write_string(src)
+      buf.write_char(':')
+    }
   }
 }

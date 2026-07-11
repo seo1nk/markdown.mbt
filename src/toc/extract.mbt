@@ -89,5 +89,7 @@ fn append_inline_text(inline : @md.Inline, buf : StringBuilder) -> Unit {
       buf.write_string(alt)
     @md.Inline::HtmlInline(..) => () // Skip HTML
     @md.Inline::FootnoteReference(label~, ..) => buf.write_string("[^\{label}]")
+    // fork: inline chord — the raw token is the readable text
+    @md.Inline::ChordInline(src~, ..) => buf.write_string(src)
   }
 }

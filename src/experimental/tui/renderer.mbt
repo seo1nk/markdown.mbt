@@ -286,6 +286,7 @@ fn measure_inline_width(inline : @markdown.Inline) -> Int {
     @markdown.Inline::SoftBreak(..) => 0
     @markdown.Inline::HardBreak(..) => 0
     @markdown.Inline::FootnoteReference(label~, ..) => label.iter().count() + 3 // [^]
+    @markdown.Inline::ChordInline(src~, ..) => src.iter().count() + 2 // colons
   }
 }
 
@@ -469,6 +470,14 @@ fn render_inline_tui(inline : @markdown.Inline, buf : StringBuilder) -> Unit {
       buf.write_string("[^")
       buf.write_string(label)
       buf.write_string("]")
+      buf.write_string(reset)
+    }
+    // fork: inline chord — keep the `:token:` source form in the terminal
+    @markdown.Inline::ChordInline(src~, ..) => {
+      buf.write_string(cyan)
+      buf.write_string(":")
+      buf.write_string(src)
+      buf.write_string(":")
       buf.write_string(reset)
     }
   }

@@ -67,7 +67,7 @@ fn append_text(inlines : Array[Inline], content : String, span : Span) -> Unit {
 ///|
 fn is_inline_marker(c : Char) -> Bool {
   match c {
-    '\\' | '`' | '*' | '_' | '~' | '[' | '!' | '<' | '\n' => true
+    '\\' | '`' | '*' | '_' | '~' | '[' | '!' | '<' | '\n' | ':' => true
     _ => false
   }
 }
@@ -75,7 +75,7 @@ fn is_inline_marker(c : Char) -> Bool {
 ///|
 fn is_inline_marker_code_unit(c : UInt16) -> Bool {
   match c {
-    0x5C | 0x60 | 0x2A | 0x5F | 0x7E | 0x5B | 0x21 | 0x3C | 0x0A => true
+    0x5C | 0x60 | 0x2A | 0x5F | 0x7E | 0x5B | 0x21 | 0x3C | 0x0A | 0x3A => true
     _ => false
   }
 }
@@ -245,6 +245,9 @@ fn InlineParser::parse_inline(self : InlineParser) -> Inline? {
 
     // Strikethrough
     Some('~') => self.try_parse_strikethrough(start)
+
+    // Inline chord `:2m7:` (chord-language fork extension)
+    Some(':') => self.try_parse_inline_chord(start)
 
     // WikiLink, Footnote reference, Link, or Image
     Some('[') =>
@@ -429,6 +432,73 @@ fn InlineParser::try_parse_strikethrough(
   }
   self.scanner.restore(start)
   None
+}
+
+///|
+/// Longest chord token accepted between colons (fork: inline chord).
+/// The longest realistic symbol (`#4mM7(b9,#11,b13)/b7@green`) is ~27 chars.
+const INLINE_CHORD_MAX_LEN : Int = 32
+
+///|
+fn is_ascii_alnum(c : Char) -> Bool {
+  (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+///|
+/// Try to parse an inline chord `:2m7:` (chord-language fork extension).
+/// The token must parse as a single chord symbol; anything else falls back
+/// to plain text. Guards against false positives in prose (times `10:30:45`,
+/// ratios `3:4:5`, URLs `http://…`):
+/// - the opening `:` must not be preceded by an ASCII alphanumeric
+/// - the closing `:` must not be followed by an ASCII alphanumeric
+/// - the token must be 1..=INLINE_CHORD_MAX_LEN chars, without whitespace
+fn InlineParser::try_parse_inline_chord(
+  self : InlineParser,
+  start : Int,
+) -> Inline? {
+  // Opening ':' must not sit inside a word/number (e.g. "10:30").
+  match self.scanner.peek_at(-1) {
+    Some(c) if is_ascii_alnum(c) => return None
+    _ => ()
+  }
+  self.scanner.advance(1) // Skip opening ':'
+  // Find the closing ':' (fail on whitespace, EOF, or overlong token)
+  let mut len = 0
+  for ;; {
+    match self.scanner.peek_at(len) {
+      Some(':') => break
+      Some(c) =>
+        if is_whitespace(c) || len >= INLINE_CHORD_MAX_LEN {
+          self.scanner.restore(start)
+          return None
+        } else {
+          len = len + 1
+        }
+      None => {
+        self.scanner.restore(start)
+        return None
+      }
+    }
+  }
+  if len == 0 {
+    self.scanner.restore(start)
+    return None
+  }
+  // Closing ':' must not run into a word/number (e.g. "3:4:5").
+  match self.scanner.peek_at(len + 1) {
+    Some(c) if is_ascii_alnum(c) => {
+      self.scanner.restore(start)
+      return None
+    }
+    _ => ()
+  }
+  let token = self.scanner.substring(self.scanner.pos, self.scanner.pos + len)
+  guard @chord_language.parse_chord(token) is Ok(_) else {
+    self.scanner.restore(start)
+    return None
+  }
+  self.scanner.advance(len + 1) // Token + closing ':'
+  Some(Inline::ChordInline(src=token, span=Span::new(start, self.scanner.pos)))
 }
 
 ///|

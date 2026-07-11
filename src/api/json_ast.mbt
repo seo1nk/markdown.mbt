@@ -434,5 +434,13 @@ fn inline_to_json(inline : @markdown.Inline) -> Json? {
         "label": label.to_json(),
         "position": position_to_json(span),
       })
+    // fork: インラインコード譜。mdast にない独自ノード(プレビューの
+    // インラインレンダラが inline_chord_html で HTML 化する)
+    @markdown.Inline::ChordInline(src~, span~) =>
+      Some({
+        "type": "chordInline",
+        "value": src.to_json(),
+        "position": position_to_json(span),
+      })
   }
 }
