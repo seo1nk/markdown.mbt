@@ -37,6 +37,7 @@ const MARKDOWN_CHEATSHEET_HTML = `<div class="chord-cheatsheet">
 <code>![説明](画像のURL)</code><span>画像</span>
 <code>&gt; 引用文</code><span>引用（行頭に &gt;）</span>
 <code>\`コード\`</code><span>インラインコード</span>
+<code>:2m7:</code><span>インラインコード譜（コード 1 つを文中に。ディグリー表示）</span>
 <code>\`\`\`</code><span>コードブロック（\`\`\` だけの行で上下を挟む）</span>
 <code>---</code><span>区切りの横線（単独行。前後に空行）</span>
 </div>`;

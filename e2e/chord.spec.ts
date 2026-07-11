@@ -335,6 +335,9 @@ test.describe("Chord block preview", () => {
     await expect(cheat).toBeVisible();
     await expect(cheat).toContainText("ディグリー 1〜7");
     await expect(cheat.locator(".chord-cheat-example")).toContainText("| 2m7 5(9) | 1M7 % |");
+    // インラインコード譜 :2m7: は両チートシート(Markdown 基本記法・コード譜)に載る
+    await expect(page.locator(".chord-help-modal")).toContainText("インラインコード譜（コード 1 つを文中に。ディグリー表示）");
+    await expect(cheat).toContainText("インラインコード譜（::: の外の本文中に 1 コード。ディグリー表示のみ）");
     // オーバーレイのクリックで閉じる
     await page.locator(".chord-help-overlay").click({ position: { x: 5, y: 5 } });
     await expect(cheat).not.toBeVisible();
