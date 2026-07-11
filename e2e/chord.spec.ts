@@ -277,16 +277,17 @@ test.describe("Chord block preview", () => {
     const button = page.locator(".preview .chord-copy-img");
     await expect(button).toBeVisible({ timeout: 5000 });
     await button.click();
-    // 成功フィードバック
-    await expect(button).toHaveText(/コピーしました|保存しました/, { timeout: 5000 });
+    // 成功フィードバック(チェックアイコン + トースト)
+    await expect(button.locator('svg[data-icon="check"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator(".chord-toast")).toHaveText("コピーしました");
     // クリップボードに PNG が入っている
     const hasPng = await page.evaluate(async () => {
       const items = await navigator.clipboard.read();
       return items.some((item) => item.types.includes("image/png"));
     });
     expect(hasPng).toBe(true);
-    // ラベルが元に戻る
-    await expect(button).toHaveText("画像コピー", { timeout: 5000 });
+    // カメラアイコンに戻る
+    await expect(button.locator('svg[data-icon="camera"]')).toBeVisible({ timeout: 5000 });
   });
 
   test("play button starts playback with cursor highlight and toggles to stop", async ({ page }) => {
@@ -296,19 +297,21 @@ test.describe("Chord block preview", () => {
     await page.waitForTimeout(500);
 
     const play = page.locator(".preview .chord-play");
-    await expect(play).toHaveText("▶ 再生");
+    await expect(play.locator('svg[data-icon="play"]')).toBeVisible();
     await play.click();
-    // 再生中: ボタンが停止表示になり、カーソルがセルをハイライトする
-    await expect(play).toHaveText("■ 停止");
+    // 再生中: ボタンが停止アイコンになり、カーソルがセルをハイライトする
+    await expect(play.locator('svg[data-icon="stop"]')).toBeVisible();
+    await expect(play).toHaveAttribute("aria-label", "停止");
     await expect(page.locator(".preview .chord-cell--playing")).toHaveCount(1, { timeout: 3000 });
-    // 手動停止でラベルとハイライトが戻る
+    // 手動停止でアイコンとハイライトが戻る
     await play.click();
-    await expect(play).toHaveText("▶ 再生");
+    await expect(play.locator('svg[data-icon="play"]')).toBeVisible();
+    await expect(play).toHaveAttribute("aria-label", "再生");
     await expect(page.locator(".preview .chord-cell--playing")).toHaveCount(0);
     // 再生し切ると自動停止する (400BPM × 8拍 = 1.2秒)
     await play.click();
-    await expect(play).toHaveText("■ 停止");
-    await expect(play).toHaveText("▶ 再生", { timeout: 4000 });
+    await expect(play.locator('svg[data-icon="stop"]')).toBeVisible();
+    await expect(play.locator('svg[data-icon="play"]')).toBeVisible({ timeout: 4000 });
   });
 
   test("hash sharp and maj7 parse; help button toggles the cheatsheet", async ({ page }) => {
@@ -326,7 +329,7 @@ test.describe("Chord block preview", () => {
     await expect(page.locator(".preview .chord-error")).toHaveCount(0);
 
     // ヘッダの ? ボタンでチートシートモーダルが開閉する
-    const cheat = page.locator(".chord-help-modal .chord-cheatsheet");
+    const cheat = page.locator(".chord-help-modal .chord-cheatsheet").last();
     await expect(cheat).not.toBeVisible();
     await page.locator(".chord-help-button").click();
     await expect(cheat).toBeVisible();

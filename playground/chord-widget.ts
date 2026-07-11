@@ -27,9 +27,24 @@ interface Player {
   timers: number[];
   cells: HTMLElement[];
   button: HTMLElement;
+  // 停止時に戻すボタンの中身(SSR 由来の再生アイコン)
+  idleHtml: string;
 }
 
 let player: Player | null = null;
+
+// ボタンの状態表示に使うアイコン(lucide 形式)。初期表示の play / camera は
+// chord-language の render_widget_html が同じ形式で埋め込む(data-icon が目印)
+function iconSvg(name: string, body: string): string {
+  return (
+    `<svg viewBox="0 0 24 24" width="1.2em" height="1.2em" fill="none" stroke="currentColor"` +
+    ` stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-icon="${name}">${body}</svg>`
+  );
+}
+
+const STOP_ICON = iconSvg("stop", '<rect width="18" height="18" x="3" y="3" rx="2"/>');
+const CHECK_ICON = iconSvg("check", '<path d="M20 6 9 17l-5-5"/>');
+const X_ICON = iconSvg("x", '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>');
 
 // 音作りの定数(値を変えると鳴り方が変わる。経緯は git ログ参照)
 const LEAD_IN = 0.08; // 再生開始までの猶予(秒)
@@ -47,7 +62,9 @@ function stopPlayback(): void {
   if (player.ctx) {
     void player.ctx.close().catch(() => {});
   }
-  player.button.textContent = "▶ 再生";
+  player.button.innerHTML = player.idleHtml;
+  player.button.setAttribute("aria-label", "再生");
+  player.button.setAttribute("title", "表示中のキーで再生");
   player = null;
 }
 
@@ -207,10 +224,13 @@ function startPlayback(widget: HTMLElement, button: HTMLElement): void {
   }
   if (data.totalBeats <= 0) return;
   const spb = 60 / (data.bpm || 120);
-  button.textContent = "■ 停止";
+  const idleHtml = button.innerHTML;
+  button.innerHTML = STOP_ICON;
+  button.setAttribute("aria-label", "停止");
+  button.setAttribute("title", "停止");
   // setupAudio 内の schedule ガードが player.ctx を参照するため、先に player を確定させる
   const { cells, timers } = scheduleCursor(widget, data, spb);
-  player = { widget, ctx: null, timers, cells, button };
+  player = { widget, ctx: null, timers, cells, button, idleHtml };
   player.ctx = setupAudio(data, spb);
 }
 
@@ -235,11 +255,15 @@ function fitScore(widget: HTMLElement): void {
   panel.style.fontSize = ""; // 等倍に戻して自然幅を測る
   const avail = panel.clientWidth;
   if (avail <= 0) return;
+  if (score.scrollWidth <= avail) return;
+  // 右端ぴったりに収めると最終セルの小節線(border-right)が overflow で
+  // クリップされて薄く見えるため、2px だけ内側を狙う
+  const target = Math.max(50, avail - 2);
   // 罫線など px 固定の要素があり縮小は完全な線形ではないため、
   // 1 回で収まらなければもう一段だけ詰める
   let scale = 1;
-  for (let i = 0; i < 2 && score.scrollWidth > avail && scale > FIT_MIN_SCALE; i++) {
-    scale = Math.max(FIT_MIN_SCALE, scale * (avail / score.scrollWidth));
+  for (let i = 0; i < 3 && score.scrollWidth > target && scale > FIT_MIN_SCALE; i++) {
+    scale = Math.max(FIT_MIN_SCALE, scale * (target / score.scrollWidth));
     panel.style.fontSize = `${scale}em`;
   }
 }
@@ -323,6 +347,23 @@ async function scoreToBlob(score: HTMLElement): Promise<Blob> {
   });
 }
 
+// 画面下部に一瞬だけ出すトースト(コピー結果の通知)
+let toastTimer = 0;
+function showToast(message: string): void {
+  document.querySelector(".chord-toast")?.remove();
+  clearTimeout(toastTimer);
+  const toast = document.createElement("div");
+  toast.className = "chord-toast";
+  toast.setAttribute("role", "status");
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("chord-toast--show"));
+  toastTimer = window.setTimeout(() => {
+    toast.classList.remove("chord-toast--show");
+    setTimeout(() => toast.remove(), 300);
+  }, 1800);
+}
+
 // クリップボードに書けない環境ではダウンロードにフォールバックする
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -336,7 +377,8 @@ function downloadBlob(blob: Blob, filename: string): void {
 async function copyScoreImage(widget: HTMLElement, button: HTMLElement): Promise<void> {
   const score = widget.querySelector<HTMLElement>(`.chord-panel--${activePanel(widget)} .chord-score`);
   if (!score) return;
-  const original = button.textContent;
+  // ボタンの中身はカメラアイコン(SVG)なので innerHTML で控えて戻す
+  const original = button.innerHTML;
   try {
     if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
       // Safari 対応: ユーザー操作の同期文脈で Promise を渡す形にする
@@ -346,17 +388,20 @@ async function copyScoreImage(widget: HTMLElement, button: HTMLElement): Promise
     } else {
       downloadBlob(await scoreToBlob(score), "chord-score.png");
     }
-    button.textContent = "コピーしました ✓";
+    button.innerHTML = CHECK_ICON;
+    showToast("コピーしました");
   } catch {
     try {
       downloadBlob(await scoreToBlob(score), "chord-score.png");
-      button.textContent = "保存しました ✓";
+      button.innerHTML = CHECK_ICON;
+      showToast("画像を保存しました");
     } catch {
-      button.textContent = "失敗しました";
+      button.innerHTML = X_ICON;
+      showToast("コピーに失敗しました");
     }
   }
   setTimeout(() => {
-    button.textContent = original;
+    button.innerHTML = original;
   }, 1600);
 }
 
@@ -435,7 +480,11 @@ export function installChordWidgets(): void {
   installed = true;
   const style = document.createElement("style");
   // FIT_MIN_SCALE まで縮めても収まらない極端に長い譜面は横スクロールで逃がす
-  style.textContent = chord_css() + "\n.chord-panel { overflow-x: auto; }";
+  style.textContent =
+    chord_css() +
+    "\n.chord-panel { overflow-x: auto; }" +
+    "\n.chord-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: rgba(28, 32, 38, 0.92); color: #fff; padding: 8px 16px; border-radius: 8px; font-size: 13px; z-index: 2000; opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap; }" +
+    "\n.chord-toast--show { opacity: 1; }";
   document.head.appendChild(style);
   document.addEventListener("click", handleClick);
   document.addEventListener("change", handleKeyChange);
