@@ -10,7 +10,6 @@
     "bench:literal:core": "moon bench --target js -p mizchi/markdown -f bench_renderer_literal.mbt",
     "prepublishOnly": "pnpm run build:editor",
     "build:dist": "pnpm run build:moon && vite build --base ./ --outDir ../dist-playground --emptyOutDir && node scripts/build-dist-lib.mjs",
-    "deploy:works": "pnpm run build:dist && node scripts/stage-deploy.mjs && wrangler deploy -c wrangler.works.jsonc",
     "test": "vitest run"
   },
   "imports": {
@@ -107,8 +106,7 @@
     "unified": "^11.0.5",
     "vite": "^7.3.1",
     "vite-plugin-moonbit": "0.1.5",
-    "vitest": "^4.0.18",
-    "wrangler": "^4.81.1"
+    "vitest": "^4.0.18"
   },
   "files": [
     "js/api.js",

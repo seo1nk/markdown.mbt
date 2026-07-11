@@ -18,21 +18,22 @@
 >
 > ローカル依存は `moon.work` ワークスペース（members: `.` と `./chord-language`）で解決しており、成果物は `_build/js/release/build/<module>/...` にモジュール名で名前空間化される。
 >
-> ### デプロイ（kseo.ink/works/md-chord）
+> ### 配布（asobi / kseo.ink への取り込み）
 >
-> プレイグラウンドは静的アセットのワーカー（`wrangler.works.jsonc`、名前 `md-chord-playground`）として、本サイト（asobi = kseo.ink）とは**独立に**デプロイする。Workers Routes の `kseo.ink/works/md-chord*` が asobi の Custom Domain より優先される。
->
-> ```bash
-> pnpm run deploy:works   # build:dist → .deploy/works/md-chord へステージ → wrangler deploy
-> ```
+> プレイグラウンドはローカル開発用（`pnpm vite`）。公開は単独デプロイではなく、
+> `pnpm run build:dist` の成果物（`dist-lib/` と `dist-playground/`）を
+> [asobi](https://github.com/seo1nk/asobi) が `public/vendor/md-chord*` に取り込み、
+> kseo.ink の /music-note（記事レンダリングと本文エディタ）で使う。
+> 更新手順は asobi 側の `src/vendor/md-chord/README.md` を参照。
 >
 > ### フォーク差分の概要
 >
 > - `src/types.mbt` / `src/block_parser_code.mbt` / `src/serializer.mbt`: `:::` フェンス（`FenceMarker::Colon`）
 > - `src/renderer.mbt`: Colon フェンスを chord-language のウィジェット HTML として SSR
-> - `src/api/json_ast.mbt`: Colon フェンスを mdast `lang: "chord-block"` にマップ
+> - `src/inline_parser*.mbt` / `src/renderer*.mbt`: インラインコード譜 `:2m7:`（`Inline::ChordInline`）
+> - `src/api/json_ast.mbt`: Colon フェンスを mdast `lang: "chord-block"`、インラインを `chordInline` にマップ
 > - `playground/`: chord ハンドラ・クライアントランタイム（chord-widget.ts）・CSS 注入
-> - `e2e/chord.spec.ts`: コード譜ブロックの E2E
+> - `e2e/chord.spec.ts`: コード譜ブロック・インラインコード譜の E2E
 >
 > ### ライセンス
 >
