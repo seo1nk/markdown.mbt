@@ -273,9 +273,13 @@ async function scoreToBlob(score: HTMLElement): Promise<Blob> {
   const fitPanel = score.parentElement;
   const savedFit = fitPanel?.style.fontSize ?? "";
   if (fitPanel) fitPanel.style.fontSize = "";
+  // ページ上の実フォントサイズで書き出す。固定 16px にすると、ページ側が
+  // 16px 以外(例: 記事本文が 15px)のとき採寸と描画がずれて下が見切れる
+  const baseFontSize = getComputedStyle(score).fontSize;
   const width = Math.ceil(score.scrollWidth);
   const height = Math.ceil(score.scrollHeight);
-  const scoreHtml = score.outerHTML;
+  // 再生中のセルハイライトは画像に写さない
+  const scoreHtml = score.outerHTML.replace(/\s*\bchord-cell--playing\b/g, "");
   if (fitPanel) fitPanel.style.fontSize = savedFit;
   const pad = 16;
   const totalW = width + pad * 2;
@@ -286,7 +290,7 @@ async function scoreToBlob(score: HTMLElement): Promise<Blob> {
     "color:#1f2328",
     `padding:${pad}px`,
     "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans','Helvetica Neue',Arial,sans-serif",
-    "font-size:16px",
+    `font-size:${baseFontSize}`,
     "line-height:1.5",
   ].join(";");
   const svg =
