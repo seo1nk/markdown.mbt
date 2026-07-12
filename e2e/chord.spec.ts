@@ -343,6 +343,36 @@ test.describe("Chord block preview", () => {
     await expect(cheat).not.toBeVisible();
   });
 
+  test("key change [key: +1] renders chips and transposes across modulation", async ({ page }) => {
+    const textarea = page.locator("textarea").first();
+    await textarea.click();
+    await textarea.fill(":::\n---\nkey: C\n---\n| 1 4 |\n[key: +1]\n| 1 4 |\n:::\n");
+    await page.waitForTimeout(500);
+
+    // ディグリータブ: ソース忠実形の転調バッジ(アウトライン)。スロットは消費しない
+    const degree = page.locator(degreeScore);
+    await expect(degree).toBeVisible({ timeout: 5000 });
+    await expect(degree.locator(".chord-modline .chord-mod")).toHaveText("key +1");
+    await expect(degree.locator(".chord-cell.chord")).toHaveCount(4);
+
+    // コードタブ(宣言キー C): 転調後は Db 基準、バッジは解決後キー
+    await page.locator('.preview .chord-tab[data-chord-tab="notes"]').click();
+    const notes = page.locator(notesScore);
+    await expect(notes).toBeVisible({ timeout: 5000 });
+    await expect(notes.locator(".chord-modline .chord-mod")).toHaveText("Key D\u266d (+1)");
+    await expect(notes.locator(".chord-cell.chord").nth(0)).toHaveText("C");
+    await expect(notes.locator(".chord-cell.chord").nth(2)).toHaveText("D\u266d");
+    await expect(notes.locator(".chord-cell.chord").nth(3)).toHaveText("G\u266d");
+
+    // プルダウン移調 = 初期キーの差し替え(D にすると転調構造ごと +2)
+    await page.locator(".preview .chord-key-select").selectOption("D");
+    await page.waitForTimeout(300);
+    await expect(notes.locator(".chord-modline .chord-mod")).toHaveText("Key E\u266d (+1)");
+    await expect(notes.locator(".chord-cell.chord").nth(0)).toHaveText("D");
+    await expect(notes.locator(".chord-cell.chord").nth(2)).toHaveText("E\u266d");
+    await expect(notes.locator(".chord-cell.chord").nth(3)).toHaveText("A\u266d");
+  });
+
   test("inline chord :2m7: renders as a degree span in preview", async ({ page }) => {
     const textarea = page.locator("textarea").first();
     await textarea.click();

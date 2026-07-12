@@ -7,7 +7,7 @@ import {
   "moonbitlang/x@0.4.41",
   "moonbitlang/yacc@0.7.12",
   "mizchi/syntree@0.2.3",
-  "seo1nk/chord_language@1.0.0",
+  "seo1nk/chord_language@1.1.0",
 }
 
 readme = "README.md"
