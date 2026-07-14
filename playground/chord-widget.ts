@@ -486,6 +486,18 @@ function handleClick(ev: MouseEvent): void {
   for (const el of widget.querySelectorAll<HTMLElement>(".chord-tab")) {
     el.classList.toggle("chord-tab--active", el.dataset.chordTab === mode);
   }
+  // 再生中の切替は、カーソルの対象セルを新しいパネルへ差し替える(旧パネルに
+  // ハイライトが残ったまま進む不具合の修正)。スケジュール済みタイマーは
+  // この配列を閉包で共有しているため、参照を保ったまま中身を入れ替える
+  if (player && player.widget === widget) {
+    const newCells = Array.from(
+      widget.querySelectorAll<HTMLElement>(`.chord-panel--${activePanel(widget)} .chord-cell`),
+    );
+    const idx = player.cells.findIndex((c) => c.classList.contains("chord-cell--playing"));
+    for (const c of player.cells) c.classList.remove("chord-cell--playing");
+    if (idx >= 0 && newCells[idx]) newCells[idx].classList.add("chord-cell--playing");
+    player.cells.splice(0, player.cells.length, ...newCells);
+  }
   // 切り替わったパネルは非表示中に測れていないのでここでフィットする
   fitScore(widget);
 }
