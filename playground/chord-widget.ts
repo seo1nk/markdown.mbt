@@ -248,7 +248,31 @@ function scheduleCursor(widget: HTMLElement, data: PlaybackData, spb: number): {
   return { cells, timers };
 }
 
-function startPlayback(widget: HTMLElement, button: HTMLElement): void {
+// 再生データを fromBeat 以降に切り出す(セルタップの部分再生・シーク用)。
+// 持続音(events)と表示(cursor)は fromBeat をまたぐ要素の頭を切り詰めて残し、
+// 打音(bass/stabs)は途中から鳴らすと不自然なので開始拍が fromBeat 以降のものだけ残す
+function slicePlayback(data: PlaybackData, fromBeat: number): PlaybackData {
+  const shiftSpan = <T extends { beat: number; dur: number }>(xs: T[]): T[] =>
+    xs
+      .filter((x) => x.beat + x.dur > fromBeat)
+      .map((x) => ({
+        ...x,
+        beat: Math.max(0, x.beat - fromBeat),
+        dur: x.beat + x.dur - Math.max(x.beat, fromBeat),
+      }));
+  const shiftHit = <T extends { beat: number }>(xs: T[]): T[] =>
+    xs.filter((x) => x.beat >= fromBeat).map((x) => ({ ...x, beat: x.beat - fromBeat }));
+  return {
+    ...data,
+    totalBeats: data.totalBeats - fromBeat,
+    events: shiftSpan(data.events),
+    bass: shiftHit(data.bass),
+    stabs: data.stabs ? shiftHit(data.stabs) : data.stabs,
+    cursor: shiftSpan(data.cursor),
+  };
+}
+
+function startPlayback(widget: HTMLElement, button: HTMLElement, fromBeat: number = 0): void {
   stopPlayback();
   const src = widget.dataset.chordSrc ?? "";
   const key = widget.dataset.chordKey ?? "C";
@@ -258,6 +282,7 @@ function startPlayback(widget: HTMLElement, button: HTMLElement): void {
   } catch {
     return;
   }
+  if (fromBeat > 0) data = slicePlayback(data, fromBeat);
   if (data.totalBeats <= 0) return;
   const spb = 60 / (data.bpm || 120);
   const idleHtml = button.innerHTML;
@@ -268,6 +293,30 @@ function startPlayback(widget: HTMLElement, button: HTMLElement): void {
   const { cells, timers } = scheduleCursor(widget, data, spb);
   player = { widget, ctx: null, timers, cells, button, idleHtml };
   player.ctx = setupAudio(data, spb);
+}
+
+// セルタップ: そのセルの開始拍から再生する(停止中 = 部分再生、再生中 = シーク)。
+// 「サビの転調だけ聴きたい」ときに毎回頭から聴かなくて済むようにする
+function playFromCell(widget: HTMLElement, cell: HTMLElement): void {
+  const button = widget.querySelector<HTMLElement>(".chord-play");
+  if (!button) return;
+  const cells = Array.from(
+    widget.querySelectorAll<HTMLElement>(`.chord-panel--${activePanel(widget)} .chord-cell`),
+  );
+  const idx = cells.indexOf(cell);
+  if (idx < 0) return;
+  const src = widget.dataset.chordSrc ?? "";
+  const key = widget.dataset.chordKey ?? "C";
+  let data: PlaybackData;
+  try {
+    data = JSON.parse(parse_to_playback(src, key));
+  } catch {
+    return;
+  }
+  // このセルに対応する最初のカーソル区間の開始拍(空拍セルなどは対象外)
+  const cur = data.cursor.find((c) => c.cell === idx);
+  if (!cur) return;
+  startPlayback(widget, button, cur.beat);
 }
 
 // ---- 画像コピー ----
@@ -476,6 +525,16 @@ function handleClick(ev: MouseEvent): void {
     return;
   }
 
+  // コードセルのタップ = そのセルから再生(テキスト選択中は誤発火させない)
+  const cell = target.closest(".chord-cell") as HTMLElement | null;
+  if (cell) {
+    const widget = widgetOf(cell);
+    if (widget && (window.getSelection()?.toString() ?? "") === "") {
+      playFromCell(widget, cell);
+    }
+    return;
+  }
+
   // タブ切替(パネルの表示切替は chord_css の data-chord-active ルールが行う)
   const tab = target.closest(".chord-tab") as HTMLElement | null;
   if (!tab) return;
@@ -533,6 +592,7 @@ export function installChordWidgets(): void {
   style.textContent =
     chord_css() +
     "\n.chord-panel { overflow-x: auto; }" +
+    "\n.chord-score .chord-cell { cursor: pointer; }" +
     "\n.chord-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: rgba(28, 32, 38, 0.92); color: #fff; padding: 8px 16px; border-radius: 8px; font-size: 13px; z-index: 2000; opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap; }" +
     "\n.chord-toast--show { opacity: 1; }";
   document.head.appendChild(style);
