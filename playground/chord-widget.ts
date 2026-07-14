@@ -59,6 +59,11 @@ function stopPlayback(): void {
   if (!player) return;
   for (const t of player.timers) clearTimeout(t);
   for (const c of player.cells) c.classList.remove("chord-cell--playing");
+  for (const chip of Array.from(
+    player.widget.querySelectorAll<HTMLElement>(".chord-mod--playing"),
+  )) {
+    chip.classList.remove("chord-mod--playing");
+  }
   if (player.ctx) {
     void player.ctx.close().catch(() => {});
   }
@@ -189,6 +194,33 @@ function setupAudio(data: PlaybackData, spb: number): AudioContext | null {
   }
 }
 
+// 再生カーソルが転調をまたいだ瞬間、そのセルに対応する転調チップを一瞬点灯させる。
+// 対象: セル内の前置チップ + 行頭セルなら直前の転調バッジ行(.chord-modline)のチップ
+const KEY_CHIP_FLASH_MS = 700;
+function flashKeyChips(cell: HTMLElement): void {
+  const chips = Array.from(
+    cell.querySelectorAll<HTMLElement>(":scope > .chord-mod:not(.chord-mod--after)"),
+  );
+  const line = cell.parentElement;
+  if (line && line.firstElementChild === cell) {
+    // セクションバッジを挟むこともあるので、modline / section の連なりを遡る
+    let prev = line.previousElementSibling;
+    while (
+      prev &&
+      (prev.classList.contains("chord-modline") || prev.classList.contains("chord-section"))
+    ) {
+      if (prev.classList.contains("chord-modline")) {
+        chips.push(...Array.from(prev.querySelectorAll<HTMLElement>(".chord-mod")));
+      }
+      prev = prev.previousElementSibling;
+    }
+  }
+  for (const chip of chips) {
+    chip.classList.add("chord-mod--playing");
+    window.setTimeout(() => chip.classList.remove("chord-mod--playing"), KEY_CHIP_FLASH_MS);
+  }
+}
+
 // カーソル: 表示中のタブのセルを再生位置に合わせてハイライトする
 function scheduleCursor(widget: HTMLElement, data: PlaybackData, spb: number): { cells: HTMLElement[]; timers: number[] } {
   const cells = Array.from(
@@ -200,7 +232,11 @@ function scheduleCursor(widget: HTMLElement, data: PlaybackData, spb: number): {
       window.setTimeout(
         () => {
           for (const c of cells) c.classList.remove("chord-cell--playing");
-          cells[cur.cell]?.classList.add("chord-cell--playing");
+          const cell = cells[cur.cell];
+          if (cell) {
+            cell.classList.add("chord-cell--playing");
+            flashKeyChips(cell);
+          }
         },
         (LEAD_IN + cur.beat * spb) * 1000,
       ),
@@ -303,7 +339,9 @@ async function scoreToBlob(score: HTMLElement): Promise<Blob> {
   const width = Math.ceil(score.scrollWidth);
   const height = Math.ceil(score.scrollHeight);
   // 再生中のセルハイライトは画像に写さない
-  const scoreHtml = score.outerHTML.replace(/\s*\bchord-cell--playing\b/g, "");
+  const scoreHtml = score.outerHTML
+    .replace(/\s*\bchord-cell--playing\b/g, "")
+    .replace(/\s*\bchord-mod--playing\b/g, "");
   if (fitPanel) fitPanel.style.fontSize = savedFit;
   const pad = 16;
   const totalW = width + pad * 2;
