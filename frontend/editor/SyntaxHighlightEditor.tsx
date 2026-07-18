@@ -451,6 +451,9 @@ export interface SyntaxHighlightEditorHandle {
   setScrollTop: (top: number) => void;
   // setValue with optional span for targeted line updates
   setValue: (value: string, span?: { start: number; end: number }) => void;
+  // カーソル位置にテキストを挿入する(選択範囲は置換)。execCommand 経由なので
+  // undo 履歴が保たれ、input イベント経由で onChange も発火する。失敗時 false
+  insertText: (text: string) => boolean;
 }
 
 export function SyntaxHighlightEditor(props: SyntaxHighlightEditorProps) {
@@ -499,6 +502,15 @@ export function SyntaxHighlightEditor(props: SyntaxHighlightEditorProps) {
         setScrollTop: (top: number) => {
           if (editorRef) {
             editorRef.scrollTop = top;
+          }
+        },
+        insertText: (text: string) => {
+          if (!editorRef) return false;
+          editorRef.focus();
+          try {
+            return document.execCommand("insertText", false, text);
+          } catch {
+            return false;
           }
         },
         setValue: (value: string, span?: { start: number; end: number }) => {

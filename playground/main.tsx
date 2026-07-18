@@ -365,10 +365,10 @@ const EDITOR_ICON = `<svg viewBox="0 0 20 20" width="18" height="18" fill="curre
   <line x1="5" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.5"/>
 </svg>`;
 
-const PREVIEW_ICON = `<svg viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
-  <rect x="2" y="2" width="16" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
-  <circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5" fill="none"/>
-  <path d="M4 10 Q7 5, 10 5 Q13 5, 16 10 Q13 15, 10 15 Q7 15, 4 10" stroke="currentColor" stroke-width="1.5" fill="none"/>
+// lucide "eye"(プレビュー = 見る、の一般的なメタファに揃える)
+const PREVIEW_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+  <circle cx="12" cy="12" r="3"/>
 </svg>`;
 
 const HIGHLIGHT_ICON = `<svg viewBox="0 0 20 20" width="18" height="18" fill="none">
@@ -781,13 +781,26 @@ function App() {
       }
       setCursorPosition(el.selectionStart);
     } else if (editorRef) {
-      const pos = editorRef.getCursorPosition();
-      const newSource = source().slice(0, pos) + insert + source().slice(pos);
-      handleChange(newSource);
-      editorRef.setValue(newSource);
-      const newPos = pos + insert.length - cursorBack;
-      editorRef.setCursorPosition(newPos);
-      setCursorPosition(newPos);
+      // execCommand 挿入(選択範囲の置換 + undo 履歴の保持 + input イベント経由で
+      // onChange 発火)。simple 経路と同じ意味論に揃える
+      let inserted = false;
+      try {
+        inserted = editorRef.insertText(insert);
+      } catch {
+        inserted = false;
+      }
+      if (!inserted) {
+        // execCommand 非対応環境のフォールバック(カーソル位置に挿入。undo は諦める)
+        const pos = editorRef.getCursorPosition();
+        const newSource = source().slice(0, pos) + insert + source().slice(pos);
+        handleChange(newSource);
+        editorRef.setValue(newSource);
+        editorRef.setCursorPosition(pos + insert.length);
+      }
+      if (cursorBack > 0) {
+        editorRef.setCursorPosition(editorRef.getCursorPosition() - cursorBack);
+      }
+      setCursorPosition(editorRef.getCursorPosition());
       editorRef.focus();
     }
   };
@@ -805,6 +818,22 @@ function App() {
     insertSnippet(item.classList.contains("chord-cheat-example") ? text + "\n" : text);
     setShowChordHelp(false);
   };
+
+  // 埋め込みモード: 親ページが描画する追従クイックバーからの挿入指示を受ける
+  // (iframe 内の sticky は親ページのスクロールに追従できないため、
+  //  埋め込みではバーの描画を親に任せ、挿入だけをここで行う)
+  //   parent -> child: { type: "md-chord-editor:insert", insert, cursorBack? }
+  onMount(() => {
+    if (!EMBED) return;
+    const onInsertMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.source !== window.parent) return;
+      const d = e.data as { type?: string; insert?: unknown; cursorBack?: unknown } | null;
+      if (d?.type !== "md-chord-editor:insert" || typeof d.insert !== "string") return;
+      insertSnippet(d.insert, typeof d.cursorBack === "number" ? d.cursorBack : 0);
+    };
+    window.addEventListener("message", onInsertMessage);
+    onCleanup(() => window.removeEventListener("message", onInsertMessage));
+  });
 
   // Debounce cursor position saving
   let cursorSaveTimer: number | undefined;
@@ -892,15 +921,18 @@ function App() {
               <button onClick={toggleDark} class="theme-toggle" title="Toggle dark mode">
                 {isDark() ? "☀️" : "🌙"}
               </button>
-              <a
-                href="https://github.com/seo1nk/markdown.mbt"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="github-link"
-                title="View on GitHub (fork)"
-              >
-                <Icon svg={GITHUB_ICON} />
-              </a>
+              {/* GitHub リンクは埋め込み(記事エディタ)では出さない */}
+              {!EMBED && (
+                <a
+                  href="https://github.com/seo1nk/markdown.mbt"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="github-link"
+                  title="View on GitHub (fork)"
+                >
+                  <Icon svg={GITHUB_ICON} />
+                </a>
+              )}
             </div>
           </header>
           <Show when={showChordHelp}>
@@ -920,8 +952,9 @@ function App() {
             {/* Editor panel - visibility controlled by CSS class */}
             <div class="editor">
               {/* モバイルのみ: DSL 頻出記号のワンタップ挿入バー。pointerdown を
-                  preventDefault してテキストエリアのフォーカス(=キーボード)を保つ */}
-              {mobile && (
+                  preventDefault してテキストエリアのフォーカス(=キーボード)を保つ。
+                  埋め込みでは親ページが追従バーを描画するのでここでは出さない */}
+              {mobile && !EMBED && (
                 <div class="quick-symbol-bar" role="toolbar" aria-label="記号入力">
                   {QUICK_CHIPS.map((c) => (
                     <button
