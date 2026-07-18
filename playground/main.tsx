@@ -263,8 +263,8 @@ function isMobile(): boolean {
 //                      insert, cursorBack?, atLineEnd?, wrap? }   カーソル位置に挿入
 //                    (wrap = B/I/S 装飾。選択範囲を挟む/なければ中央にカーソル)
 //   parent -> child: { type: "md-chord-editor:command", command, value? }
-//                    (setView: "editor" | "preview" の表示切替 / toggleHelp:
-//                     チートシートの開閉)
+//                    (setView: "split" | "editor" | "preview" の表示切替 /
+//                     toggleHelp: チートシートの開閉)
 // 埋め込みはライトテーマ・highlight エディタに固定(テーマ/モード切替は出さない)
 const EMBED = new URLSearchParams(window.location.search).has("embed");
 
@@ -966,7 +966,10 @@ function App() {
       if (e.origin !== window.location.origin || e.source !== window.parent) return;
       const d = e.data as { type?: string; command?: unknown; value?: unknown } | null;
       if (d?.type !== "md-chord-editor:command") return;
-      if (d.command === "setView" && (d.value === "editor" || d.value === "preview")) {
+      if (
+        d.command === "setView" &&
+        (d.value === "editor" || d.value === "preview" || d.value === "split")
+      ) {
         handleViewModeChange(d.value);
       } else if (d.command === "toggleHelp") {
         setShowChordHelp(!showChordHelp());
