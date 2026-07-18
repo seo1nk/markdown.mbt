@@ -50,10 +50,14 @@ interface QuickChip {
   atLineEnd?: boolean;
 }
 
-const QUICK_CHIPS: QuickChip[] = [
+// 1 行目(親バー): Markdown 装飾。2 行目: Chordblock の記号・構造チップ
+const FORMAT_CHIPS: QuickChip[] = [
   { label: "B", wrap: "**" },
   { label: "I", wrap: "*" },
   { label: "S", wrap: "~~" },
+];
+
+const SCORE_CHIPS: QuickChip[] = [
   { label: ":::", insert: ":::\n" },
   { label: "小節", insert: "|  |", cursorBack: 2 },
   { label: "歌詞", insert: "> ", atLineEnd: true },
@@ -67,6 +71,9 @@ const QUICK_CHIPS: QuickChip[] = [
   { label: "%", insert: "%" },
   { label: "NC", insert: "NC" },
 ];
+
+// スタンドアロンのモバイルバーは 1 本のバーに全チップを折り返しで並べる
+const QUICK_CHIPS: QuickChip[] = [...FORMAT_CHIPS, ...SCORE_CHIPS];
 
 // B/I/S チップのラベル装飾(wrap の意味をそのまま見た目にする)
 function chipClass(c: QuickChip): string {
@@ -242,18 +249,28 @@ function isMobile(): boolean {
 // postMessage で本文をやり取りする。本文の永続化は親の責務なので、
 // IndexedDB への保存とタブ間同期は行わない。
 // プロトコル:
-//   child -> parent: { type: "md-chord-editor:ready", chips }     初期化要求
-//                    (chips = クイックバー定義。親が追従バーを描画する)
-//   parent -> child: { type: "md-chord-editor:init", content }    初期本文
+//   child -> parent: { type: "md-chord-editor:ready",
+//                      chips, formatChips }                       初期化要求
+//                    (chips = Chordblock チップ、formatChips = B/I/S。
+//                     親が追従バー 2 行を描画する)
+//   parent -> child: { type: "md-chord-editor:init", content,
+//                      externalToolbar? }                         初期本文
+//                    (externalToolbar = true なら親がツールバーを描画するので
+//                     iframe 内ヘッダを出さない。判定は親の画面幅が正 —
+//                     iframe 自身の幅で判定すると親と食い違う帯域が生まれる)
 //   child -> parent: { type: "md-chord-editor:change", content }  本文変更(即時)
 //   parent -> child: { type: "md-chord-editor:insert",
 //                      insert, cursorBack?, atLineEnd?, wrap? }   カーソル位置に挿入
 //                    (wrap = B/I/S 装飾。選択範囲を挟む/なければ中央にカーソル)
+//   parent -> child: { type: "md-chord-editor:command", command, value? }
+//                    (setView: "editor" | "preview" の表示切替 / toggleHelp:
+//                     チートシートの開閉)
+// 埋め込みはライトテーマ・highlight エディタに固定(テーマ/モード切替は出さない)
 const EMBED = new URLSearchParams(window.location.search).has("embed");
 
 // 親ページに初期本文を要求する。親側のリスナー登録とタイミングが前後しても
 // よいように、init が届くまで ready を再送する。親が応答しない場合は空文書で開く
-function requestParentContent(): Promise<string> {
+function requestParentContent(): Promise<{ content: string; externalToolbar: boolean }> {
   return new Promise((resolve) => {
     const cleanup = () => {
       clearTimeout(timer);
@@ -262,12 +279,13 @@ function requestParentContent(): Promise<string> {
     };
     const timer = window.setTimeout(() => {
       cleanup();
-      resolve("");
+      resolve({ content: "", externalToolbar: false });
     }, 5000);
     const sendReady = () => {
-      // chips: 親ページが描画する追従クイックバーの定義(QUICK_CHIPS が単一ソース)
+      // chips / formatChips: 親ページが描画する追従バー 2 行の定義
+      // (SCORE_CHIPS / FORMAT_CHIPS が単一ソース)
       window.parent.postMessage(
-        { type: "md-chord-editor:ready", chips: QUICK_CHIPS },
+        { type: "md-chord-editor:ready", chips: SCORE_CHIPS, formatChips: FORMAT_CHIPS },
         window.location.origin,
       );
     };
@@ -276,7 +294,10 @@ function requestParentContent(): Promise<string> {
       if (e.origin !== window.location.origin || e.source !== window.parent) return;
       if (e.data?.type !== "md-chord-editor:init") return;
       cleanup();
-      resolve(typeof e.data.content === "string" ? e.data.content : "");
+      resolve({
+        content: typeof e.data.content === "string" ? e.data.content : "",
+        externalToolbar: e.data.externalToolbar === true,
+      });
     };
     window.addEventListener("message", onMessage);
     sendReady();
@@ -325,6 +346,9 @@ function loadUIState(): UIState {
 }
 
 function saveUIState(state: Partial<UIState>): void {
+  // 埋め込みは light + highlight 固定・表示状態も持ち越さない(単体プレイグラウンドの
+  // 設定を汚さない)
+  if (EMBED) return;
   try {
     const current = loadUIState();
     const updated = { ...current, ...state };
@@ -454,13 +478,21 @@ function App() {
   // Load UI state synchronously for initial render
   const initialUIState = loadUIState();
   const mobile = isMobile();
+  if (EMBED) {
+    // 埋め込みは highlight エディタ固定。表示は保存状態を持ち込まず、
+    // モバイル = editor(親バーで editor/preview を切替)、それ以外 = split
+    initialUIState.editorMode = "highlight";
+    initialUIState.viewMode = mobile ? "editor" : "split";
+  }
 
   const [source, setSource] = createSignal("");
   const [ast, setAst] = createSignal<Root | null>(null);
   const [cursorPosition, setCursorPosition] = createSignal(initialUIState.cursorPosition);
   const [isInitialized, setIsInitialized] = createSignal(false);
+  // 親ページがツールバーを描画している間は iframe 内ヘッダを出さない(init で確定)
+  const [externalToolbar, setExternalToolbar] = createSignal(false);
   const [isDark, setIsDark] = createSignal((() => {
-    // 埋め込みは基本ライトモード(トグルでの切り替えは可能だが、その場限り)
+    // 埋め込みはライトモード固定(トグル自体を出さない)
     if (EMBED) return false;
     const saved = localStorage.getItem("theme");
     if (saved) return saved === "dark";
@@ -585,7 +617,9 @@ function App() {
 
       if (EMBED) {
         // 埋め込み時は親ページの本文が正。空文書(新規投稿)もそのまま使う
-        content = await requestParentContent();
+        const init = await requestParentContent();
+        content = init.content;
+        setExternalToolbar(init.externalToolbar);
       } else {
         try {
           const idbData = await loadFromIDB();
@@ -927,8 +961,23 @@ function App() {
         typeof d.wrap === "string" ? d.wrap : undefined,
       );
     };
+    // 親ツールバーからの操作指示(editor/preview 切替・チートシート開閉)
+    const onCommandMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.source !== window.parent) return;
+      const d = e.data as { type?: string; command?: unknown; value?: unknown } | null;
+      if (d?.type !== "md-chord-editor:command") return;
+      if (d.command === "setView" && (d.value === "editor" || d.value === "preview")) {
+        handleViewModeChange(d.value);
+      } else if (d.command === "toggleHelp") {
+        setShowChordHelp(!showChordHelp());
+      }
+    };
     window.addEventListener("message", onInsertMessage);
-    onCleanup(() => window.removeEventListener("message", onInsertMessage));
+    window.addEventListener("message", onCommandMessage);
+    onCleanup(() => {
+      window.removeEventListener("message", onInsertMessage);
+      window.removeEventListener("message", onCommandMessage);
+    });
   });
 
   // Debounce cursor position saving
@@ -946,6 +995,9 @@ function App() {
     <Show when={isInitialized}>
       {() => (
         <div class="app-container">
+          {/* 親ページがツールバーを描画している間(モバイル埋め込み)はヘッダを出さない */}
+          <Show when={() => !externalToolbar()}>
+            {() => (
           <header class="toolbar">
             <div class="toolbar-left">
               <div class="view-mode-buttons">
@@ -973,22 +1025,25 @@ function App() {
                   <Icon svg={PREVIEW_ICON} />
                 </button>
               </div>
-              <div class="editor-mode-buttons">
-                <button
-                  class={highlightBtnClass}
-                  onClick={() => handleEditorModeChange("highlight")}
-                  title="Syntax highlight editor"
-                >
-                  <Icon svg={HIGHLIGHT_ICON} />
-                </button>
-                <button
-                  class={simpleBtnClass}
-                  onClick={() => handleEditorModeChange("simple")}
-                  title="Simple text editor"
-                >
-                  <Icon svg={SIMPLE_ICON} />
-                </button>
-              </div>
+              {/* 埋め込みは highlight 固定なのでモード切替を出さない */}
+              {!EMBED && (
+                <div class="editor-mode-buttons">
+                  <button
+                    class={highlightBtnClass}
+                    onClick={() => handleEditorModeChange("highlight")}
+                    title="Syntax highlight editor"
+                  >
+                    <Icon svg={HIGHLIGHT_ICON} />
+                  </button>
+                  <button
+                    class={simpleBtnClass}
+                    onClick={() => handleEditorModeChange("simple")}
+                    title="Simple text editor"
+                  >
+                    <Icon svg={SIMPLE_ICON} />
+                  </button>
+                </div>
+              )}
               {/* 埋め込み時の保存はフォーム側の責務なので Saved 表示は出さない */}
               {!EMBED && (
                 <span class={saveStatusClass}>
@@ -1014,9 +1069,12 @@ function App() {
               >
                 <Icon svg={HELP_ICON} />
               </button>
-              <button onClick={toggleDark} class="theme-toggle" title="Toggle dark mode">
-                {isDark() ? "☀️" : "🌙"}
-              </button>
+              {/* 埋め込みはライト固定なのでテーマ切替を出さない */}
+              {!EMBED && (
+                <button onClick={toggleDark} class="theme-toggle" title="Toggle dark mode">
+                  {isDark() ? "☀️" : "🌙"}
+                </button>
+              )}
               {/* GitHub リンクは埋め込み(記事エディタ)では出さない */}
               {!EMBED && (
                 <a
@@ -1031,6 +1089,8 @@ function App() {
               )}
             </div>
           </header>
+            )}
+          </Show>
           <Show when={showChordHelp}>
             {() => (
               <div class="chord-help-overlay" onClick={() => setShowChordHelp(false)}>
