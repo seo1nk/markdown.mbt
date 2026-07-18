@@ -20,9 +20,31 @@ import { RawHtml } from "./ast-renderer";
 .chord-help-modal { background: var(--bg-primary, #fff); color: var(--text-primary, inherit); border: 1px solid var(--border-color, #8886); border-radius: 10px; padding: 1.2em 1.4em; max-width: 660px; width: 100%; max-height: calc(100vh - 96px); overflow-y: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
 .chord-help-section-title { font-weight: 700; font-size: 0.92em; margin: 0 0 0.7em; padding-bottom: 0.3em; border-bottom: 1px solid var(--border-color, #8886); }
 .chord-help-modal .chord-help-section-title:not(:first-child) { margin-top: 1.5em; }
+.chord-help-hint { font-size: 0.75em; opacity: 0.65; margin: 0 0 0.8em; }
+.chord-help-modal .chord-cheatsheet code, .chord-help-modal .chord-cheat-example { cursor: pointer; border-radius: 4px; }
+.chord-help-modal .chord-cheatsheet code:hover, .chord-help-modal .chord-cheat-example:hover { background: rgba(125, 125, 125, 0.16); }
+.quick-symbol-bar { display: flex; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border-color, #8886); overflow-x: auto; flex: none; -webkit-overflow-scrolling: touch; }
+.quick-chip { flex: none; min-width: 2.4em; padding: 5px 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; line-height: 1; border: 1px solid var(--border-color, #8886); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.quick-chip:active { background: rgba(125, 125, 125, 0.25); }
 `;
   document.head.appendChild(modalStyle);
 }
+
+// モバイル記号クイックバー。DSL の主役記号(| % _ など)はスマホキーボードの
+// 記号レイヤー切替が毎回必要なので、ワンタップでカーソル位置に挿入できるようにする。
+// cursorBack は挿入後にカーソルを戻す文字数([key: ] の中へ置く等)
+const QUICK_CHIPS: { label: string; insert: string; cursorBack?: number }[] = [
+  { label: "|", insert: "| " },
+  { label: "%", insert: "% " },
+  { label: "_", insert: "_ " },
+  { label: "-", insert: "-" },
+  { label: "b", insert: "b" },
+  { label: "s", insert: "s" },
+  { label: ">", insert: "> " },
+  { label: "@", insert: "@" },
+  { label: "[key:]", insert: "[key: ]", cursorBack: 1 },
+  { label: ":::", insert: ":::\n" },
+];
 
 // Markdown 自体の基本記法のチートシート。Markdown を知らない人向けの
 // 最小限の一覧(表示スタイルはコード譜チートシート .chord-cheatsheet を流用)
@@ -732,6 +754,58 @@ function App() {
     }, AST_PARSE_DELAY);
   };
 
+  // カーソル位置へのテキスト挿入(記号クイックバー・チートシートのタップ挿入)。
+  // simple エディタは execCommand で挿入して undo 履歴とキーボードのフォーカスを保つ
+  // (input イベント経由で handleChange が走る)。highlight エディタは
+  // setValue + setCursorPosition(チェックボックストグルと同じ経路)
+  const insertSnippet = (insert: string, cursorBack: number = 0) => {
+    if (editorMode() === "simple" && simpleEditorRef) {
+      const el = simpleEditorRef;
+      el.focus();
+      let inserted = false;
+      try {
+        inserted = document.execCommand("insertText", false, insert);
+      } catch {
+        inserted = false;
+      }
+      if (!inserted) {
+        // execCommand 非対応環境のフォールバック(undo 履歴は諦める)
+        const start = el.selectionStart;
+        el.value = el.value.slice(0, start) + insert + el.value.slice(el.selectionEnd);
+        el.setSelectionRange(start + insert.length, start + insert.length);
+        handleChange(el.value);
+      }
+      if (cursorBack > 0) {
+        const pos = el.selectionStart - cursorBack;
+        el.setSelectionRange(pos, pos);
+      }
+      setCursorPosition(el.selectionStart);
+    } else if (editorRef) {
+      const pos = editorRef.getCursorPosition();
+      const newSource = source().slice(0, pos) + insert + source().slice(pos);
+      handleChange(newSource);
+      editorRef.setValue(newSource);
+      const newPos = pos + insert.length - cursorBack;
+      editorRef.setCursorPosition(newPos);
+      setCursorPosition(newPos);
+      editorRef.focus();
+    }
+  };
+
+  // チートシートの項目タップでカーソル位置に挿入してモーダルを閉じる
+  // (code = 1 記法、chord-cheat-example = コピペ実例の複数行)。
+  // 「（空行）」のような説明だけの項目は挿入しない
+  const handleCheatSheetClick = (e: Event) => {
+    e.stopPropagation();
+    const target = e.target as HTMLElement | null;
+    const item = target?.closest?.("code, .chord-cheat-example") as HTMLElement | null;
+    if (!item) return;
+    const text = item.textContent ?? "";
+    if (text === "" || text.startsWith("（")) return;
+    insertSnippet(item.classList.contains("chord-cheat-example") ? text + "\n" : text);
+    setShowChordHelp(false);
+  };
+
   // Debounce cursor position saving
   let cursorSaveTimer: number | undefined;
   const handleCursorChange = (position: number) => {
@@ -832,7 +906,8 @@ function App() {
           <Show when={showChordHelp}>
             {() => (
               <div class="chord-help-overlay" onClick={() => setShowChordHelp(false)}>
-                <div class="chord-help-modal" onClick={(e: Event) => e.stopPropagation()}>
+                <div class="chord-help-modal" onClick={handleCheatSheetClick}>
+                  <p class="chord-help-hint">記法や実例をタップすると、カーソル位置に挿入されます</p>
                   <div class="chord-help-section-title">Markdown の基本</div>
                   <RawHtml html={MARKDOWN_CHEATSHEET_HTML} />
                   <div class="chord-help-section-title">コード譜ブロック（::: フェンス）</div>
@@ -844,6 +919,22 @@ function App() {
           <div class={containerClass}>
             {/* Editor panel - visibility controlled by CSS class */}
             <div class="editor">
+              {/* モバイルのみ: DSL 頻出記号のワンタップ挿入バー。pointerdown を
+                  preventDefault してテキストエリアのフォーカス(=キーボード)を保つ */}
+              {mobile && (
+                <div class="quick-symbol-bar" role="toolbar" aria-label="記号入力">
+                  {QUICK_CHIPS.map((c) => (
+                    <button
+                      type="button"
+                      class="quick-chip"
+                      onPointerDown={(e: Event) => e.preventDefault()}
+                      onClick={() => insertSnippet(c.insert, c.cursorBack ?? 0)}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {/* Syntax highlight editor - always mounted, visibility controlled by CSS */}
               <div class="editor-highlight-wrapper">
                 <SyntaxHighlightEditor
