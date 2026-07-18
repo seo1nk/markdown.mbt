@@ -446,6 +446,8 @@ function getLineFromOffset(text: string, offset: number): number {
 export interface SyntaxHighlightEditorHandle {
   focus: () => void;
   getCursorPosition: () => number;
+  // 選択範囲の終端(選択がなければ getCursorPosition と同じ値)
+  getSelectionEnd: () => number;
   setCursorPosition: (pos: number) => void;
   getScrollTop: () => number;
   setScrollTop: (top: number) => void;
@@ -492,6 +494,7 @@ export function SyntaxHighlightEditor(props: SyntaxHighlightEditorProps) {
       props.ref({
         focus: () => editorRef?.focus(),
         getCursorPosition: () => editorRef?.selectionStart ?? 0,
+        getSelectionEnd: () => editorRef?.selectionEnd ?? 0,
         setCursorPosition: (pos: number) => {
           if (editorRef) {
             editorRef.setSelectionRange(pos, pos);
