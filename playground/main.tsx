@@ -30,21 +30,44 @@ import { RawHtml } from "./ast-renderer";
   document.head.appendChild(modalStyle);
 }
 
-// モバイル記号クイックバー。DSL の主役記号(| % _ など)はスマホキーボードの
-// 記号レイヤー切替が毎回必要なので、ワンタップでカーソル位置に挿入できるようにする。
-// cursorBack は挿入後にカーソルを戻す文字数([key: ] の中へ置く等)
-const QUICK_CHIPS: { label: string; insert: string; cursorBack?: number }[] = [
-  { label: "|", insert: "| " },
-  { label: "%", insert: "% " },
-  { label: "_", insert: "_ " },
-  { label: "-", insert: "-" },
-  { label: "b", insert: "b" },
-  { label: "s", insert: "s" },
-  { label: ">", insert: "> " },
-  { label: "@", insert: "@" },
-  { label: "[key:]", insert: "[key: ]", cursorBack: 1 },
+// モバイル記号クイックバー。DSL の主役記号はスマホキーボードの記号レイヤー
+// 切替が毎回必要なので、ワンタップでカーソル位置に挿入できるようにする。
+// - cursorBack: 挿入後にカーソルを戻す文字数(小節の中央・[key: ] の中へ置く等)
+// - atLineEnd: 今いる行の行末に改行してから挿入(歌詞 = 直近の小節の配下に置く。
+//   今いる行が空なら改行せずその場に挿入)
+// この定義は ready メッセージに同載して親ページへ渡り、埋め込み(asobi)の
+// 追従バーはこれをそのまま描画する(単一ソース。二重管理しない)
+interface QuickChip {
+  label: string;
+  insert: string;
+  cursorBack?: number;
+  atLineEnd?: boolean;
+}
+
+const QUICK_CHIPS: QuickChip[] = [
   { label: ":::", insert: ":::\n" },
+  { label: "小節", insert: "|  |", cursorBack: 2 },
+  { label: "歌詞", insert: "> ", atLineEnd: true },
+  { label: "転調", insert: "[key: ]", cursorBack: 1 },
+  { label: "/", insert: "/" },
+  { label: "♭", insert: "b" },
+  { label: "#", insert: "#" },
+  { label: "-", insert: "-" },
+  { label: "@", insert: "@" },
+  { label: "_", insert: "_" },
+  { label: "%", insert: "%" },
+  { label: "NC", insert: "NC" },
 ];
+
+// atLineEnd 挿入の飛び先: 今いる行が空ならその場(改行なし)、
+// 中身があれば行末(改行を前置してから挿入)
+function lineEndTarget(value: string, pos: number): { pos: number; prefix: string } {
+  const lineStart = value.lastIndexOf("\n", pos - 1) + 1;
+  let lineEnd = value.indexOf("\n", pos);
+  if (lineEnd < 0) lineEnd = value.length;
+  const lineIsEmpty = value.slice(lineStart, lineEnd).trim() === "";
+  return lineIsEmpty ? { pos, prefix: "" } : { pos: lineEnd, prefix: "\n" };
+}
 
 // Markdown 自体の基本記法のチートシート。Markdown を知らない人向けの
 // 最小限の一覧(表示スタイルはコード譜チートシート .chord-cheatsheet を流用)
@@ -197,9 +220,12 @@ function isMobile(): boolean {
 // postMessage で本文をやり取りする。本文の永続化は親の責務なので、
 // IndexedDB への保存とタブ間同期は行わない。
 // プロトコル:
-//   child -> parent: { type: "md-chord-editor:ready" }            初期化要求
+//   child -> parent: { type: "md-chord-editor:ready", chips }     初期化要求
+//                    (chips = クイックバー定義。親が追従バーを描画する)
 //   parent -> child: { type: "md-chord-editor:init", content }    初期本文
 //   child -> parent: { type: "md-chord-editor:change", content }  本文変更(即時)
+//   parent -> child: { type: "md-chord-editor:insert",
+//                      insert, cursorBack?, atLineEnd? }          カーソル位置に挿入
 const EMBED = new URLSearchParams(window.location.search).has("embed");
 
 // 親ページに初期本文を要求する。親側のリスナー登録とタイミングが前後しても
@@ -216,7 +242,11 @@ function requestParentContent(): Promise<string> {
       resolve("");
     }, 5000);
     const sendReady = () => {
-      window.parent.postMessage({ type: "md-chord-editor:ready" }, window.location.origin);
+      // chips: 親ページが描画する追従クイックバーの定義(QUICK_CHIPS が単一ソース)
+      window.parent.postMessage(
+        { type: "md-chord-editor:ready", chips: QUICK_CHIPS },
+        window.location.origin,
+      );
     };
     const retry = window.setInterval(sendReady, 200);
     const onMessage = (e: MessageEvent) => {
@@ -757,22 +787,28 @@ function App() {
   // カーソル位置へのテキスト挿入(記号クイックバー・チートシートのタップ挿入)。
   // simple エディタは execCommand で挿入して undo 履歴とキーボードのフォーカスを保つ
   // (input イベント経由で handleChange が走る)。highlight エディタは
-  // setValue + setCursorPosition(チェックボックストグルと同じ経路)
-  const insertSnippet = (insert: string, cursorBack: number = 0) => {
+  // insertText(execCommand)で同じ意味論。atLineEnd は挿入前に行末へ移動する
+  const insertSnippet = (insert: string, cursorBack: number = 0, atLineEnd: boolean = false) => {
     if (editorMode() === "simple" && simpleEditorRef) {
       const el = simpleEditorRef;
       el.focus();
+      let text = insert;
+      if (atLineEnd) {
+        const t = lineEndTarget(el.value, el.selectionStart);
+        el.setSelectionRange(t.pos, t.pos);
+        text = t.prefix + insert;
+      }
       let inserted = false;
       try {
-        inserted = document.execCommand("insertText", false, insert);
+        inserted = document.execCommand("insertText", false, text);
       } catch {
         inserted = false;
       }
       if (!inserted) {
         // execCommand 非対応環境のフォールバック(undo 履歴は諦める)
         const start = el.selectionStart;
-        el.value = el.value.slice(0, start) + insert + el.value.slice(el.selectionEnd);
-        el.setSelectionRange(start + insert.length, start + insert.length);
+        el.value = el.value.slice(0, start) + text + el.value.slice(el.selectionEnd);
+        el.setSelectionRange(start + text.length, start + text.length);
         handleChange(el.value);
       }
       if (cursorBack > 0) {
@@ -783,19 +819,25 @@ function App() {
     } else if (editorRef) {
       // execCommand 挿入(選択範囲の置換 + undo 履歴の保持 + input イベント経由で
       // onChange 発火)。simple 経路と同じ意味論に揃える
+      let text = insert;
+      if (atLineEnd) {
+        const t = lineEndTarget(source(), editorRef.getCursorPosition());
+        editorRef.setCursorPosition(t.pos);
+        text = t.prefix + insert;
+      }
       let inserted = false;
       try {
-        inserted = editorRef.insertText(insert);
+        inserted = editorRef.insertText(text);
       } catch {
         inserted = false;
       }
       if (!inserted) {
         // execCommand 非対応環境のフォールバック(カーソル位置に挿入。undo は諦める)
         const pos = editorRef.getCursorPosition();
-        const newSource = source().slice(0, pos) + insert + source().slice(pos);
+        const newSource = source().slice(0, pos) + text + source().slice(pos);
         handleChange(newSource);
         editorRef.setValue(newSource);
-        editorRef.setCursorPosition(pos + insert.length);
+        editorRef.setCursorPosition(pos + text.length);
       }
       if (cursorBack > 0) {
         editorRef.setCursorPosition(editorRef.getCursorPosition() - cursorBack);
@@ -821,15 +863,25 @@ function App() {
 
   // 埋め込みモード: 親ページが描画する追従クイックバーからの挿入指示を受ける
   // (iframe 内の sticky は親ページのスクロールに追従できないため、
-  //  埋め込みではバーの描画を親に任せ、挿入だけをここで行う)
-  //   parent -> child: { type: "md-chord-editor:insert", insert, cursorBack? }
+  //  埋め込みではバーの描画を親に任せ、挿入だけをここで行う。
+  //  バーのチップ定義は ready メッセージで親へ渡している = QUICK_CHIPS が単一ソース)
+  //   parent -> child: { type: "md-chord-editor:insert", insert, cursorBack?, atLineEnd? }
   onMount(() => {
     if (!EMBED) return;
     const onInsertMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.source !== window.parent) return;
-      const d = e.data as { type?: string; insert?: unknown; cursorBack?: unknown } | null;
+      const d = e.data as {
+        type?: string;
+        insert?: unknown;
+        cursorBack?: unknown;
+        atLineEnd?: unknown;
+      } | null;
       if (d?.type !== "md-chord-editor:insert" || typeof d.insert !== "string") return;
-      insertSnippet(d.insert, typeof d.cursorBack === "number" ? d.cursorBack : 0);
+      insertSnippet(
+        d.insert,
+        typeof d.cursorBack === "number" ? d.cursorBack : 0,
+        d.atLineEnd === true,
+      );
     };
     window.addEventListener("message", onInsertMessage);
     onCleanup(() => window.removeEventListener("message", onInsertMessage));
@@ -961,7 +1013,7 @@ function App() {
                       type="button"
                       class="quick-chip"
                       onPointerDown={(e: Event) => e.preventDefault()}
-                      onClick={() => insertSnippet(c.insert, c.cursorBack ?? 0)}
+                      onClick={() => insertSnippet(c.insert, c.cursorBack ?? 0, c.atLineEnd === true)}
                     >
                       {c.label}
                     </button>
