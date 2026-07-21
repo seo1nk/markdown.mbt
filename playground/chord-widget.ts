@@ -525,7 +525,7 @@ function handleClick(ev: MouseEvent): void {
     return;
   }
 
-  const spellBtn = target.closest(".chord-spell") as HTMLElement | null;
+  const spellBtn = target.closest(".chord-spell-opt") as HTMLElement | null;
   if (spellBtn) {
     handleSpellToggle(spellBtn);
     return;
@@ -592,9 +592,10 @@ function handleKeyChange(ev: Event): void {
   applySelectedKey(widget, select.value);
 }
 
-// ♯/♭トグル: プルダウンの黒鍵スロットの綴りを ♯ 側へ一括で切り替える。
-// OFF では元の綴り(宣言キーの置き換えスロット含む)へ戻す。
-// 選択中のキーの綴りが変わったときは notes パネルも綴り直す
+// ♭/♯セグメントトグル: プルダウンの黒鍵スロットの綴りを一括で切り替える。
+// 既定は ♭ 側(= 既定の正準表。宣言キーの置き換えスロットを含む)で、
+// ♯ 側は 5 スロットすべてシャープ綴りになる。選択中のキーの綴りが
+// 変わったときは notes パネルも綴り直す
 // (綴りの優先度は選択キー名が運ぶ — MoonBit 側 spelling_pref)
 const SHARP_SPELLINGS: Record<string, string> = {
   Db: "C#",
@@ -608,11 +609,13 @@ function handleSpellToggle(btn: HTMLElement): void {
   const widget = widgetOf(btn);
   const select = widget?.querySelector<HTMLSelectElement>(".chord-key-select");
   if (!widget || !select) return;
-  const sharp = btn.getAttribute("aria-pressed") !== "true";
-  btn.setAttribute("aria-pressed", String(sharp));
-  const label = sharp ? "元の綴りに戻す" : "♯表記に切り替え";
-  btn.title = label;
-  btn.setAttribute("aria-label", label);
+  const sharp = btn.dataset.chordSpell === "sharp";
+  if (btn.getAttribute("aria-pressed") === "true") return; // すでにその側
+  for (const opt of Array.from(
+    widget.querySelectorAll<HTMLElement>(".chord-spell-opt"),
+  )) {
+    opt.setAttribute("aria-pressed", String(opt === btn));
+  }
   const before = select.value;
   for (const opt of Array.from(select.options)) {
     if (sharp) {
