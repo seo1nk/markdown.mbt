@@ -525,6 +525,12 @@ function handleClick(ev: MouseEvent): void {
     return;
   }
 
+  const spellBtn = target.closest(".chord-spell") as HTMLElement | null;
+  if (spellBtn) {
+    handleSpellToggle(spellBtn);
+    return;
+  }
+
   // コードセルのタップ = そのセルから再生(テキスト選択中は誤発火させない)
   const cell = target.closest(".chord-cell") as HTMLElement | null;
   if (cell) {
@@ -561,24 +567,72 @@ function handleClick(ev: MouseEvent): void {
   fitScore(widget);
 }
 
-// キープルダウン: 選択キーで notes パネルを再レンダリング
+// 選択キーで notes パネルを再レンダリング
 // (移調ロジックは MoonBit 側の parse_to_notes_html を呼ぶ — 二重実装しない)
+function applySelectedKey(widget: HTMLElement, key: string): void {
+  if (player && player.widget === widget) {
+    stopPlayback();
+  }
+  const src = widget.dataset.chordSrc ?? "";
+  widget.dataset.chordKey = key;
+  const panel = widget.querySelector(".chord-panel--notes");
+  if (panel) {
+    panel.innerHTML = parse_to_notes_html(src, key);
+  }
+  // 音名の長さでスコア幅が変わることがあるので測り直す
+  fitScore(widget);
+}
+
+// キープルダウンの変更
 function handleKeyChange(ev: Event): void {
   const select = ev.target as HTMLSelectElement | null;
   if (!select?.classList?.contains("chord-key-select")) return;
   const widget = widgetOf(select);
   if (!widget) return;
-  if (player && player.widget === widget) {
-    stopPlayback();
+  applySelectedKey(widget, select.value);
+}
+
+// ♯/♭トグル: プルダウンの黒鍵スロットの綴りを ♯ 側へ一括で切り替える。
+// OFF では元の綴り(宣言キーの置き換えスロット含む)へ戻す。
+// 選択中のキーの綴りが変わったときは notes パネルも綴り直す
+// (綴りの優先度は選択キー名が運ぶ — MoonBit 側 spelling_pref)
+const SHARP_SPELLINGS: Record<string, string> = {
+  Db: "C#",
+  Eb: "D#",
+  Gb: "F#",
+  Ab: "G#",
+  Bb: "A#",
+};
+
+function handleSpellToggle(btn: HTMLElement): void {
+  const widget = widgetOf(btn);
+  const select = widget?.querySelector<HTMLSelectElement>(".chord-key-select");
+  if (!widget || !select) return;
+  const sharp = btn.getAttribute("aria-pressed") !== "true";
+  btn.setAttribute("aria-pressed", String(sharp));
+  const label = sharp ? "元の綴りに戻す" : "♯表記に切り替え";
+  btn.title = label;
+  btn.setAttribute("aria-label", label);
+  const before = select.value;
+  for (const opt of Array.from(select.options)) {
+    if (sharp) {
+      const to = SHARP_SPELLINGS[opt.value];
+      if (to) {
+        // 元の綴り(宣言キーの置き換えを含む)を覚えてから ♯ 側へ
+        opt.dataset.origValue = opt.value;
+        opt.value = to;
+        opt.text = to;
+      }
+    } else if (opt.dataset.origValue) {
+      opt.value = opt.dataset.origValue;
+      // 表示ラベルは b → ♭(MoonBit 側 key_display_label と同じ規則)
+      opt.text = opt.dataset.origValue.replace(/b/g, "♭");
+      delete opt.dataset.origValue;
+    }
   }
-  const src = widget.dataset.chordSrc ?? "";
-  widget.dataset.chordKey = select.value;
-  const panel = widget.querySelector(".chord-panel--notes");
-  if (panel) {
-    panel.innerHTML = parse_to_notes_html(src, select.value);
+  if (select.value !== before) {
+    applySelectedKey(widget, select.value);
   }
-  // 音名の長さでスコア幅が変わることがあるので測り直す
-  fitScore(widget);
 }
 
 ///
